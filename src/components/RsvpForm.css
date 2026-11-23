@@ -1,0 +1,52 @@
+.rsvp-form {
+  max-width: 520px;
+  margin: 2rem auto 0;
+  text-align: left;
+  background: var(--bg-card);
+  padding: 2.5rem 2rem;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-soft);
+}
+
+.form-group {
+  margin-bottom: 1.35rem;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.form-control {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--border-light);
+  background: var(--bg-primary);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.25s ease;
+}
+
+.form-control:focus {
+  border-color: var(--accent-primary);
+}
+
+.rsvp-submit-wrapper {
+  text-align: center;
+  margin-top: 1.75rem;
+}
+
+.rsvp-success {
+  padding: 2rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent-primary);
+  text-align: center;
+  margin-top: 2rem;
+}

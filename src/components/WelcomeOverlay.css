@@ -1,0 +1,323 @@
+.welcome-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background-color: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: opacity 0.85s ease 0.45s, visibility 0.85s ease 0.45s;
+}
+
+.welcome-overlay.opening {
+  pointer-events: none;
+}
+
+.welcome-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Contenedor principal del sobre: 100% responsivo */
+.envelope-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: 920px;
+  max-height: 660px;
+  background-color: var(--bg-primary);
+  box-shadow: 0 25px 65px rgba(25, 22, 20, 0.22);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  perspective: 1400px;
+}
+
+@media (max-width: 920px) {
+  .envelope-stage {
+    max-width: 100%;
+    max-height: 100%;
+    box-shadow: none;
+  }
+}
+
+/* Textura sutil de papel fino en toda la superficie */
+.envelope-paper-texture {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.45) 0%, transparent 55%),
+    radial-gradient(circle at 80% 80%, rgba(44, 40, 37, 0.04) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Pliegues laterales izquierdo y derecho */
+.envelope-flap-left {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+  clip-path: polygon(0 0, 52% 50%, 0 100%);
+  filter: drop-shadow(4px 0 12px rgba(44, 40, 37, 0.09));
+  z-index: 2;
+}
+
+.envelope-flap-right {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(225deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+  clip-path: polygon(100% 0, 48% 50%, 100% 100%);
+  filter: drop-shadow(-4px 0 12px rgba(44, 40, 37, 0.09));
+  z-index: 2;
+}
+
+/* Pliegue inferior del sobre */
+.envelope-flap-bottom {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, var(--bg-secondary) 15%, var(--bg-primary) 100%);
+  clip-path: polygon(0 100%, 50% 45%, 100% 100%);
+  filter: drop-shadow(0 -6px 16px rgba(44, 40, 37, 0.12));
+  z-index: 3;
+}
+
+/* Solapa triangular superior que se abre al dar clic */
+.envelope-flap-top {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    var(--bg-secondary) 0%,
+    var(--bg-primary) 88%
+  );
+  clip-path: polygon(0 0, 100% 0, 50% 54%);
+  filter: drop-shadow(0 10px 20px rgba(44, 40, 37, 0.16));
+  transform-origin: top center;
+  transition: transform 0.75s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 4;
+}
+
+.welcome-overlay.opening .envelope-flap-top,
+.welcome-overlay.hidden .envelope-flap-top {
+  transform: rotateX(180deg);
+}
+
+/* Líneas finas doradas decorativas en el borde de la solapa */
+.envelope-gold-trim {
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(0 0, 100% 0, 50% 54%);
+  background: linear-gradient(
+    to bottom,
+    transparent 96%,
+    rgba(197, 160, 89, 0.45) 100%
+  );
+  pointer-events: none;
+  z-index: 5;
+  transition: opacity 0.4s ease;
+}
+
+.welcome-overlay.opening .envelope-gold-trim {
+  opacity: 0;
+}
+
+/* Mensaje superior elegante sobre la solapa */
+.envelope-header-text {
+  position: absolute;
+  top: clamp(2rem, 9vh, 4.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 86%;
+  max-width: 440px;
+  text-align: center;
+  z-index: 6;
+  transition: opacity 0.45s ease, transform 0.45s ease;
+}
+
+.welcome-overlay.opening .envelope-header-text {
+  opacity: 0;
+  transform: translate(-50%, -14px);
+}
+
+.envelope-eyebrow {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--accent-primary);
+  margin-bottom: 0.45rem;
+}
+
+.welcome-text {
+  font-family: var(--font-serif);
+  font-size: clamp(1.3rem, 3.6vw, 1.75rem);
+  font-style: italic;
+  color: var(--text-primary);
+  line-height: 1.35;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* Contenedor central del Sello de Cera Dorado */
+.wax-seal-center {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2vh;
+  transition: opacity 0.4s ease, transform 0.45s ease;
+}
+
+.welcome-overlay.opening .wax-seal-center {
+  opacity: 0;
+  transform: scale(0.85);
+}
+
+/* Botón Sello de Lacre Dorado Realista */
+.gold-wax-seal-btn {
+  position: relative;
+  width: clamp(114px, 26vw, 134px);
+  height: clamp(114px, 26vw, 134px);
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  color: #fffaf0;
+  background: radial-gradient(
+    circle at 32% 28%,
+    #f6e29f 0%,
+    #d4af37 32%,
+    #aa8224 72%,
+    #7c5b12 100%
+  );
+  box-shadow:
+    0 14px 30px rgba(68, 49, 12, 0.36),
+    0 4px 10px rgba(0, 0, 0, 0.18),
+    inset 0 3px 6px rgba(255, 250, 224, 0.65),
+    inset 0 -4px 8px rgba(92, 66, 10, 0.55);
+  animation: sealAttractPulse 2.8s ease-in-out infinite;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Anillo interior grabado del sello */
+.gold-wax-seal-btn::before {
+  content: '';
+  position: absolute;
+  inset: 9px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 248, 220, 0.55);
+  box-shadow:
+    inset 0 1px 3px rgba(92, 66, 10, 0.55),
+    0 1px 2px rgba(255, 250, 224, 0.45);
+  pointer-events: none;
+}
+
+/* Destello diagonal sutil sobre la cera dorada */
+.gold-wax-seal-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(
+    125deg,
+    rgba(255, 255, 255, 0.34) 0%,
+    rgba(255, 255, 255, 0) 48%
+  );
+  pointer-events: none;
+}
+
+.gold-wax-seal-btn:hover {
+  animation-play-state: paused;
+  transform: scale(1.06);
+  box-shadow:
+    0 18px 36px rgba(68, 49, 12, 0.44),
+    0 0 0 8px rgba(212, 175, 55, 0.18),
+    inset 0 3px 6px rgba(255, 250, 224, 0.75);
+}
+
+.gold-wax-seal-btn:active {
+  transform: scale(0.97);
+}
+
+.seal-initials {
+  font-family: var(--font-serif);
+  font-size: clamp(1.65rem, 4.2vw, 2.05rem);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.1;
+  color: #fffdf7;
+  text-shadow: 0 1px 2px rgba(85, 60, 8, 0.65);
+  z-index: 2;
+}
+
+.seal-action-label {
+  font-family: var(--font-sans);
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #fff9e6;
+  margin-top: 0.25rem;
+  text-shadow: 0 1px 2px rgba(85, 60, 8, 0.65);
+  z-index: 2;
+}
+
+/* Etiqueta inferior discreta que refuerza la acción */
+.envelope-tap-hint {
+  margin-top: 1.25rem;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent-dark);
+  background: rgba(255, 255, 255, 0.72);
+  padding: 0.45rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(197, 160, 89, 0.35);
+  backdrop-filter: blur(4px);
+  animation: hintFloat 2.8s ease-in-out infinite;
+}
+
+/* Animación combinada de latido + halo dorado para atraer la atención */
+@keyframes sealAttractPulse {
+  0%, 100% {
+    transform: scale(1) translateY(0);
+    box-shadow:
+      0 14px 30px rgba(68, 49, 12, 0.36),
+      0 0 0 0 rgba(212, 175, 55, 0.45),
+      inset 0 3px 6px rgba(255, 250, 224, 0.65),
+      inset 0 -4px 8px rgba(92, 66, 10, 0.55);
+  }
+  50% {
+    transform: scale(1.055) translateY(-3px);
+    box-shadow:
+      0 20px 38px rgba(68, 49, 12, 0.42),
+      0 0 0 14px rgba(212, 175, 55, 0),
+      inset 0 3px 7px rgba(255, 250, 224, 0.75),
+      inset 0 -4px 8px rgba(92, 66, 10, 0.55);
+  }
+}
+
+@keyframes hintFloat {
+  0%, 100% {
+    opacity: 0.85;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
