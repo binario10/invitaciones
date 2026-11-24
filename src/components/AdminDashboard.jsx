@@ -11,10 +11,14 @@ import {
   Upload,
   ArrowLeft,
   ArrowRight,
+  ArrowUp,
+  ArrowDown,
   Save,
   LogOut,
   Play,
   Link2,
+  Image as ImageIcon,
+  Layers,
 } from 'lucide-react';
 import { eventTemplates } from '../data/eventTemplates';
 import { colorPalettes } from '../data/colorPalettes';
@@ -32,12 +36,49 @@ const TYPE_LABELS = {
   custom: 'Evento Social',
 };
 
+const DEFAULT_SECTION_ORDER = [
+  'countdown',
+  'familyQuote',
+  'locations',
+  'dressCodeGifts',
+  'gallery',
+  'album',
+  'rsvp',
+];
+
+const BUILTIN_SECTION_NAMES = {
+  countdown: 'Cuenta Regresiva (Contador)',
+  familyQuote: 'Frase y Padres / Padrinos',
+  locations: 'Itinerario (Ceremonia y Recepción)',
+  dressCodeGifts: 'Código de Vestimenta y Mesa de Regalos',
+  gallery: 'Galería / Carrusel de Fotos y Videos',
+  album: 'Álbum Colaborativo QR',
+  rsvp: 'Confirmación de Asistencia (RSVP)',
+};
+
 const VIDEO_EXT_REGEX = /\.(mp4|mov|webm|m4v|avi|mkv)(\?.*)?$/i;
 
 function isVideoMedia(item) {
   if (!item) return false;
   if (item.type === 'video') return true;
   return VIDEO_EXT_REGEX.test(item.url || '');
+}
+
+function buildNormalizedOrder(rawOrder, customHeroes) {
+  const customIds = (customHeroes || []).map((h) => h.id).filter(Boolean);
+  const validKeys = new Set([...DEFAULT_SECTION_ORDER, ...customIds]);
+  const base = Array.isArray(rawOrder)
+    ? rawOrder.filter((k) => validKeys.has(k))
+    : [];
+
+  const result = [...base];
+  for (const key of DEFAULT_SECTION_ORDER) {
+    if (!result.includes(key)) result.push(key);
+  }
+  for (const cId of customIds) {
+    if (!result.includes(cId)) result.push(cId);
+  }
+  return result;
 }
 
 export default function AdminDashboard() {
@@ -54,7 +95,6 @@ export default function AdminDashboard() {
   const [copiedSlug, setCopiedSlug] = useState('');
   const [newGalleryUrl, setNewGalleryUrl] = useState('');
 
-  // Estado unificado de subida con barra de progreso real (XMLHttpRequest)
   const [uploadState, setUploadState] = useState({
     active: false,
     fieldKey: '',
@@ -63,7 +103,6 @@ export default function AdminDashboard() {
     progress: 0,
   });
 
-  // Estado para gestionar fotos/videos del álbum del evento desde el panel
   const [managingAlbumSlug, setManagingAlbumSlug] = useState('');
   const [albumMediaItems, setAlbumMediaItems] = useState([]);
   const [loadingAlbumMedia, setLoadingAlbumMedia] = useState(false);
@@ -141,6 +180,22 @@ export default function AdminDashboard() {
     if (!Array.isArray(ev.gallery.photos)) {
       ev.gallery.photos = [];
     }
+    if (!Array.isArray(ev.customHeroes)) {
+      ev.customHeroes = [];
+    }
+    if (!ev.sectionBackgrounds || typeof ev.sectionBackgrounds !== 'object') {
+      ev.sectionBackgrounds = {};
+    }
+    for (const key of DEFAULT_SECTION_ORDER) {
+      if (!ev.sectionBackgrounds[key]) {
+        ev.sectionBackgrounds[key] = {
+          useImage: false,
+          imageUrl: '',
+          overlayOpacity: 55,
+        };
+      }
+    }
+    ev.sectionOrder = buildNormalizedOrder(ev.sectionOrder, ev.customHeroes);
     return ev;
   };
 
@@ -254,7 +309,6 @@ export default function AdminDashboard() {
     setTimeout(() => setCopiedSlug(''), 2200);
   };
 
-  // Subida individual con XMLHttpRequest y modal global de progreso real
   const handleAssetUpload = async (file, fieldKey, labelTitle, onSuccessUrl) => {
     if (!file || uploadState.active) return;
     const cleanSlug = editingEvent?.slug?.trim().toLowerCase();
@@ -308,7 +362,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Subida múltiple secuencial con barra de progreso real para la Galería (fotos y videos)
   const handleGalleryMultiUpload = async (fileList) => {
     const files = Array.from(fileList || []);
     if (files.length === 0 || uploadState.active) return;
@@ -434,6 +487,70 @@ export default function AdminDashboard() {
     });
   };
 
+  // Funciones para Secciones Hero Personalizadas
+  const handleAddCustomHero = () => {
+    const newId = `custom_hero_${Date.now()}`;
+    setEditingEvent((prev) => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      const nextNum = (copy.customHeroes?.length || 0) + 1;
+      copy.customHeroes = [
+        ...(copy.customHeroes || []),
+        {
+          id: newId,
+          enabled: true,
+          eyebrow: 'Momento Especial',
+          title: `Sección Hero #${nextNum}`,
+          bodyText: '',
+          backgroundImage: copy.hero?.heroImage || '',
+          overlayOpacity: 45,
+          alignment: 'center',
+          buttonText: '',
+          buttonUrl: '',
+        },
+      ];
+      copy.sectionOrder = buildNormalizedOrder(
+        [...(copy.sectionOrder || []), newId],
+        copy.customHeroes
+      );
+      return copy;
+    });
+  };
+
+  const handleUpdateCustomHero = (index, field, value) => {
+    setEditingEvent((prev) => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      copy.customHeroes[index][field] = value;
+      return copy;
+    });
+  };
+
+  const handleRemoveCustomHero = (index) => {
+    setEditingEvent((prev) => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      const removedId = copy.customHeroes[index]?.id;
+      copy.customHeroes = copy.customHeroes.filter((_, i) => i !== index);
+      copy.sectionOrder = (copy.sectionOrder || []).filter(
+        (k) => k !== removedId
+      );
+      return copy;
+    });
+  };
+
+  // Reordenamiento de secciones
+  const handleMoveSectionOrder = (index, direction) => {
+    setEditingEvent((prev) => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      const order = [...(copy.sectionOrder || [])];
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= order.length) return prev;
+      const temp = order[index];
+      order[index] = order[targetIndex];
+      order[targetIndex] = temp;
+      copy.sectionOrder = order;
+      return copy;
+    });
+  };
+
   const handleSaveEvent = async (e) => {
     e.preventDefault();
     if (uploadState.active) return;
@@ -467,6 +584,9 @@ export default function AdminDashboard() {
       const keys = path.split('.');
       let cur = copy;
       for (let i = 0; i < keys.length - 1; i++) {
+        if (!cur[keys[i]] || typeof cur[keys[i]] !== 'object') {
+          cur[keys[i]] = {};
+        }
         cur = cur[keys[i]];
       }
       cur[keys[keys.length - 1]] = value;
@@ -474,11 +594,130 @@ export default function AdminDashboard() {
     });
   };
 
+  // Helper UI reutilizable para elegir Paleta vs Fotografía de Fondo en cualquier sección
+  const renderSectionBackgroundControl = (sectionKey, sectionLabel) => {
+    const bgCfg = editingEvent?.sectionBackgrounds?.[sectionKey] || {
+      useImage: false,
+      imageUrl: '',
+      overlayOpacity: 55,
+    };
+    const fieldUploadKey = `sec_bg_${sectionKey}`;
+
+    return (
+      <div className="section-bg-config-box">
+        <div className="section-bg-config-header">
+          <label className="checkbox-row">
+            <input
+              type="checkbox"
+              checked={Boolean(bgCfg.useImage)}
+              onChange={(e) =>
+                updateField(
+                  `sectionBackgrounds.${sectionKey}.useImage`,
+                  e.target.checked
+                )
+              }
+            />
+            <ImageIcon size={15} />
+            Usar fotografía de fondo en esta sección ({sectionLabel})
+          </label>
+          <span style={{ fontSize: '0.73rem', color: '#6e6862' }}>
+            {bgCfg.useImage
+              ? 'Fondo fotográfico activo'
+              : 'Usando color de la paleta'}
+          </span>
+        </div>
+
+        {bgCfg.useImage && (
+          <div style={{ marginTop: '0.85rem' }}>
+            <div className="editor-grid-2">
+              <div className="field-box" style={{ marginBottom: 0 }}>
+                <label>Imagen de Fondo (URL o Subir)</label>
+                <div className="upload-inline-row">
+                  <input
+                    type="text"
+                    className="field-input"
+                    placeholder="https://... o sube una foto"
+                    value={bgCfg.imageUrl || ''}
+                    onChange={(e) =>
+                      updateField(
+                        `sectionBackgrounds.${sectionKey}.imageUrl`,
+                        e.target.value
+                      )
+                    }
+                  />
+                  <label
+                    className="admin-mini-btn"
+                    style={{ whiteSpace: 'nowrap' }}
+                  >
+                    <Upload size={15} />
+                    {uploadState.active &&
+                    uploadState.fieldKey === fieldUploadKey
+                      ? `${uploadState.progress}%`
+                      : 'Subir'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      disabled={uploadState.active}
+                      onChange={(e) => {
+                        handleAssetUpload(
+                          e.target.files?.[0],
+                          fieldUploadKey,
+                          `Subiendo fondo de ${sectionLabel}...`,
+                          (url) =>
+                            updateField(
+                              `sectionBackgrounds.${sectionKey}.imageUrl`,
+                              url
+                            )
+                        );
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="field-box" style={{ marginBottom: 0 }}>
+                <label>
+                  Oscurecimiento para legibilidad ({bgCfg.overlayOpacity ?? 55}%)
+                </label>
+                <input
+                  type="range"
+                  min="15"
+                  max="85"
+                  value={bgCfg.overlayOpacity ?? 55}
+                  onChange={(e) =>
+                    updateField(
+                      `sectionBackgrounds.${sectionKey}.overlayOpacity`,
+                      Number(e.target.value)
+                    )
+                  }
+                />
+              </div>
+            </div>
+
+            {bgCfg.imageUrl?.trim() && (
+              <div className="section-bg-preview-strip">
+                <img
+                  src={bgCfg.imageUrl}
+                  alt="Vista previa fondo"
+                  className="section-bg-thumb"
+                />
+                <span style={{ fontSize: '0.75rem', color: '#6e6862' }}>
+                  Vista previa de imagen asignada
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (checkingAuth) {
     return <div className="state-screen">Verificando sesión...</div>;
   }
 
-  // PANTALLA DE LOGIN
   if (!token) {
     return (
       <div className="admin-shell">
@@ -546,6 +785,71 @@ export default function AdminDashboard() {
   const isStoreEnabled = editingEvent?.gifts?.storeRegistry?.enabled !== false;
   const isGalleryEnabled = editingEvent?.gallery?.enabled !== false;
   const galleryPhotos = editingEvent?.gallery?.photos || [];
+  const customHeroes = editingEvent?.customHeroes || [];
+  const currentSectionOrder = editingEvent?.sectionOrder || DEFAULT_SECTION_ORDER;
+
+  const getSectionOrderMeta = (key) => {
+    if (key === 'countdown') {
+      return {
+        label: BUILTIN_SECTION_NAMES.countdown,
+        active: Boolean(editingEvent?.hero?.dateISO),
+        isCustom: false,
+      };
+    }
+    if (key === 'familyQuote') {
+      return {
+        label: BUILTIN_SECTION_NAMES.familyQuote,
+        active:
+          Boolean(editingEvent?.quote?.enabled) ||
+          editingEvent?.familySection?.enabled !== false,
+        isCustom: false,
+      };
+    }
+    if (key === 'locations') {
+      return {
+        label: BUILTIN_SECTION_NAMES.locations,
+        active: (editingEvent?.events || []).some((e) => e.enabled !== false),
+        isCustom: false,
+      };
+    }
+    if (key === 'dressCodeGifts') {
+      return {
+        label: BUILTIN_SECTION_NAMES.dressCodeGifts,
+        active: isDressCodeEnabled || isGiftsEnabled,
+        isCustom: false,
+      };
+    }
+    if (key === 'gallery') {
+      return {
+        label: BUILTIN_SECTION_NAMES.gallery,
+        active: isGalleryEnabled && galleryPhotos.length > 0,
+        isCustom: false,
+      };
+    }
+    if (key === 'album') {
+      return {
+        label: BUILTIN_SECTION_NAMES.album,
+        active: Boolean(editingEvent?.album?.enabled),
+        isCustom: false,
+      };
+    }
+    if (key === 'rsvp') {
+      return {
+        label: BUILTIN_SECTION_NAMES.rsvp,
+        active: Boolean(editingEvent?.rsvp),
+        isCustom: false,
+      };
+    }
+    const chIdx = customHeroes.findIndex((c) => c.id === key);
+    const ch = chIdx >= 0 ? customHeroes[chIdx] : null;
+    return {
+      label: ch
+        ? `Hero Personalizado #${chIdx + 1}: ${ch.title || ch.eyebrow || 'Sin título'}`
+        : key,
+      active: ch ? ch.enabled !== false : false,
+      isCustom: true,
+    };
+  };
 
   return (
     <div className="admin-shell">
@@ -559,7 +863,6 @@ export default function AdminDashboard() {
         </button>
       </nav>
 
-      {/* Modal global bloqueante con barra de progreso real hasta finalizar subida */}
       <UploadProgressModal
         isOpen={uploadState.active}
         progress={uploadState.progress}
@@ -569,7 +872,6 @@ export default function AdminDashboard() {
 
       <div className="admin-container">
         {managingAlbumSlug ? (
-          /* GESTOR DE FOTOS Y VIDEOS DEL ÁLBUM DE UN EVENTO */
           <div className="editor-card">
             <div className="admin-toolbar">
               <button
@@ -1132,6 +1434,8 @@ export default function AdminDashboard() {
                   </div>
                 )}
               </div>
+
+              {renderSectionBackgroundControl('countdown', 'Cuenta Regresiva')}
             </div>
 
             {/* 3. FRASE Y ROLES FAMILIARES OPCIONALES */}
@@ -1290,9 +1594,11 @@ export default function AdminDashboard() {
                   </div>
                 </>
               )}
+
+              {renderSectionBackgroundControl('familyQuote', 'Frase y Familia')}
             </div>
 
-            {/* 4. UBICACIONES (CON CHECK ACTIVAR/DESACTIVAR INDIVIDUAL) */}
+            {/* 4. UBICACIONES */}
             <div className="editor-card">
               <h3 className="editor-section-title">
                 <span>4. Ceremonia y Recepción</span>
@@ -1449,15 +1755,16 @@ export default function AdminDashboard() {
                   </div>
                 );
               })}
+
+              {renderSectionBackgroundControl('locations', 'Itinerario')}
             </div>
 
-            {/* 5. VESTIMENTA Y MESA DE REGALOS (INDEPENDIENTES Y MODULARES) */}
+            {/* 5. VESTIMENTA Y MESA DE REGALOS */}
             <div className="editor-card">
               <h3 className="editor-section-title">
                 <span>5. Vestimenta y Mesa de Regalos</span>
               </h3>
 
-              {/* Bloque independiente 5A: Código de Vestimenta */}
               <div
                 className={`repeat-subcard ${
                   !isDressCodeEnabled ? 'disabled-block' : ''
@@ -1504,7 +1811,6 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              {/* Bloque independiente 5B: Mesa de Regalos */}
               <div
                 className={`repeat-subcard ${
                   !isGiftsEnabled ? 'disabled-block' : ''
@@ -1551,7 +1857,6 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    {/* Sub-opción 1: Datos Bancarios opcionales */}
                     <div
                       className={`repeat-subcard ${
                         !isBankEnabled ? 'disabled-block' : ''
@@ -1616,7 +1921,6 @@ export default function AdminDashboard() {
                       )}
                     </div>
 
-                    {/* Sub-opción 2: Tienda Mesa de Regalos opcional */}
                     <div
                       className={`repeat-subcard ${
                         !isStoreEnabled ? 'disabled-block' : ''
@@ -1697,6 +2001,11 @@ export default function AdminDashboard() {
                   </>
                 )}
               </div>
+
+              {renderSectionBackgroundControl(
+                'dressCodeGifts',
+                'Vestimenta y Regalos'
+              )}
             </div>
 
             {/* 6. GALERÍA / CARRUSEL DE FOTOS Y VIDEOS DE LA INVITACIÓN */}
@@ -1744,7 +2053,6 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* Controles para subir archivos o agregar URL */}
                   <div className="editor-grid-2" style={{ alignItems: 'end' }}>
                     <div className="field-box" style={{ marginBottom: 0 }}>
                       <label>Subir Fotos o Videos (Selección Múltiple)</label>
@@ -1901,13 +2209,276 @@ export default function AdminDashboard() {
                   )}
                 </>
               )}
+
+              {renderSectionBackgroundControl('gallery', 'Galería')}
             </div>
 
-            {/* 7. ÁLBUM COLABORATIVO Y RSVP */}
+            {/* 7. SECCIONES PERSONALIZADAS TIPO HERO (PANTALLA COMPLETA 100vh) */}
+            <div className="editor-card">
+              <h3 className="editor-section-title">
+                <span>7. Secciones Personalizadas Tipo Hero (Pantalla Completa)</span>
+                <button
+                  type="button"
+                  className="btn-solid"
+                  style={{ padding: '0.6rem 1.2rem' }}
+                  onClick={handleAddCustomHero}
+                >
+                  <Plus size={15} /> Agregar Sección Hero
+                </button>
+              </h3>
+
+              <p
+                style={{
+                  fontSize: '0.83rem',
+                  color: '#6e6862',
+                  marginBottom: '1rem',
+                }}
+              >
+                Crea bloques fotográficos a pantalla completa (100vh) con textos
+                personalizados encima. Después puedes ubicarlos en cualquier lugar
+                de la invitación en la sección 9.
+              </p>
+
+              {customHeroes.length === 0 ? (
+                <p
+                  style={{
+                    color: '#6e6862',
+                    fontSize: '0.85rem',
+                    padding: '1rem',
+                    background: '#faf8f5',
+                    border: '1px dashed #dcd5ca',
+                    textAlign: 'center',
+                  }}
+                >
+                  No has agregado secciones personalizadas tipo Hero aún.
+                </p>
+              ) : (
+                customHeroes.map((ch, idx) => {
+                  const isChEnabled = ch.enabled !== false;
+                  const chUploadKey = `custom_hero_bg_${ch.id}`;
+
+                  return (
+                    <div
+                      key={ch.id || idx}
+                      className={`repeat-subcard ${
+                        !isChEnabled ? 'disabled-block' : ''
+                      }`}
+                    >
+                      <div className="subcard-header">
+                        <label className="checkbox-row">
+                          <input
+                            type="checkbox"
+                            checked={isChEnabled}
+                            onChange={(e) =>
+                              handleUpdateCustomHero(
+                                idx,
+                                'enabled',
+                                e.target.checked
+                              )
+                            }
+                          />
+                          Mostrar Hero Personalizado #{idx + 1}
+                        </label>
+
+                        <button
+                          type="button"
+                          className="admin-mini-btn danger"
+                          style={{ padding: '0.3rem 0.6rem' }}
+                          onClick={() => handleRemoveCustomHero(idx)}
+                        >
+                          <Trash2 size={13} /> Eliminar
+                        </button>
+                      </div>
+
+                      <div className="editor-grid-2">
+                        <div className="field-box">
+                          <label>Etiqueta Superior (opcional)</label>
+                          <input
+                            type="text"
+                            className="field-input"
+                            placeholder="ej. Nuestra Historia / Recepción"
+                            value={ch.eyebrow || ''}
+                            onChange={(e) =>
+                              handleUpdateCustomHero(
+                                idx,
+                                'eyebrow',
+                                e.target.value
+                              )
+                            }
+                          />
+                        </div>
+
+                        <div className="field-box">
+                          <label>Título Principal (opcional)</label>
+                          <input
+                            type="text"
+                            className="field-input"
+                            placeholder="ej. Un nuevo comienzo"
+                            value={ch.title || ''}
+                            onChange={(e) =>
+                              handleUpdateCustomHero(
+                                idx,
+                                'title',
+                                e.target.value
+                              )
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      <div className="field-box">
+                        <label>Texto / Mensaje Superpuesto (opcional)</label>
+                        <textarea
+                          rows="3"
+                          className="field-input"
+                          placeholder="Escribe un mensaje, dedicatoria o información adicional..."
+                          value={ch.bodyText || ''}
+                          onChange={(e) =>
+                            handleUpdateCustomHero(
+                              idx,
+                              'bodyText',
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="editor-grid-2">
+                        <div className="field-box">
+                          <label>Fotografía de Fondo (100vh)</label>
+                          <div className="upload-inline-row">
+                            <input
+                              type="text"
+                              className="field-input"
+                              placeholder="URL o sube fotografía"
+                              value={ch.backgroundImage || ''}
+                              onChange={(e) =>
+                                handleUpdateCustomHero(
+                                  idx,
+                                  'backgroundImage',
+                                  e.target.value
+                                )
+                              }
+                            />
+                            <label
+                              className="admin-mini-btn"
+                              style={{ whiteSpace: 'nowrap' }}
+                            >
+                              <Upload size={15} />
+                              {uploadState.active &&
+                              uploadState.fieldKey === chUploadKey
+                                ? `${uploadState.progress}%`
+                                : 'Subir'}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                hidden
+                                disabled={uploadState.active}
+                                onChange={(e) => {
+                                  handleAssetUpload(
+                                    e.target.files?.[0],
+                                    chUploadKey,
+                                    `Subiendo foto Hero #${idx + 1}...`,
+                                    (url) =>
+                                      handleUpdateCustomHero(
+                                        idx,
+                                        'backgroundImage',
+                                        url
+                                      )
+                                  );
+                                  e.target.value = '';
+                                }}
+                              />
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className="editor-grid-2">
+                          <div className="field-box">
+                            <label>Alineación Texto</label>
+                            <select
+                              className="field-input"
+                              value={ch.alignment || 'center'}
+                              onChange={(e) =>
+                                handleUpdateCustomHero(
+                                  idx,
+                                  'alignment',
+                                  e.target.value
+                                )
+                              }
+                            >
+                              <option value="center">Centrado</option>
+                              <option value="left">Izquierda</option>
+                              <option value="right">Derecha</option>
+                            </select>
+                          </div>
+
+                          <div className="field-box">
+                            <label>
+                              Oscurecimiento ({ch.overlayOpacity ?? 45}%)
+                            </label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="85"
+                              value={ch.overlayOpacity ?? 45}
+                              onChange={(e) =>
+                                handleUpdateCustomHero(
+                                  idx,
+                                  'overlayOpacity',
+                                  Number(e.target.value)
+                                )
+                              }
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="editor-grid-2">
+                        <div className="field-box" style={{ marginBottom: 0 }}>
+                          <label>Texto Botón Opcional</label>
+                          <input
+                            type="text"
+                            className="field-input"
+                            placeholder="ej. Ver Ubicación / Más Info"
+                            value={ch.buttonText || ''}
+                            onChange={(e) =>
+                              handleUpdateCustomHero(
+                                idx,
+                                'buttonText',
+                                e.target.value
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="field-box" style={{ marginBottom: 0 }}>
+                          <label>Enlace del Botón Opcional</label>
+                          <input
+                            type="text"
+                            className="field-input"
+                            placeholder="https://... o #cuenta-regresiva"
+                            value={ch.buttonUrl || ''}
+                            onChange={(e) =>
+                              handleUpdateCustomHero(
+                                idx,
+                                'buttonUrl',
+                                e.target.value
+                              )
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* 8. ÁLBUM COLABORATIVO Y RSVP */}
             <div className="editor-card">
               <h3 className="editor-section-title">
                 <span>
-                  7. Álbum Colaborativo (/{editingEvent.slug || 'evento'}/album)
+                  8. Álbum Colaborativo (/{editingEvent.slug || 'evento'}/album)
                   y RSVP
                 </span>
                 <label className="checkbox-row">
@@ -1997,6 +2568,77 @@ export default function AdminDashboard() {
                     }
                   />
                 </div>
+              </div>
+
+              {renderSectionBackgroundControl('album', 'Álbum QR')}
+              {renderSectionBackgroundControl('rsvp', 'Confirmación RSVP')}
+            </div>
+
+            {/* 9. ORDEN DE VISUALIZACIÓN DE LAS SECCIONES */}
+            <div className="editor-card">
+              <h3 className="editor-section-title">
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Layers size={20} /> 9. Orden de Visualización de las Secciones
+                </span>
+              </h3>
+              <p
+                style={{
+                  fontSize: '0.83rem',
+                  color: '#6e6862',
+                  marginBottom: '1rem',
+                }}
+              >
+                La Portada Principal siempre abre la invitación y el Pie de Página
+                la cierra. Usa las flechas para decidir el orden exacto de todas
+                las secciones intermedias (incluidos tus Hero personalizados).
+              </p>
+
+              <div className="section-order-list">
+                {currentSectionOrder.map((key, idx) => {
+                  const meta = getSectionOrderMeta(key);
+                  return (
+                    <div
+                      key={key}
+                      className={`section-order-row ${
+                        meta.isCustom ? 'is-custom-hero' : ''
+                      }`}
+                    >
+                      <div className="section-order-info">
+                        <span className="section-order-num">{idx + 1}</span>
+                        <span className="section-order-label">{meta.label}</span>
+                        {meta.isCustom && (
+                          <span className="section-order-tag">Hero Extra</span>
+                        )}
+                        {!meta.active && (
+                          <span className="section-order-tag inactive">
+                            Oculta / Sin datos
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="section-order-actions">
+                        <button
+                          type="button"
+                          className="admin-mini-btn"
+                          disabled={idx === 0}
+                          title="Subir sección"
+                          onClick={() => handleMoveSectionOrder(idx, -1)}
+                        >
+                          <ArrowUp size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          className="admin-mini-btn"
+                          disabled={idx === currentSectionOrder.length - 1}
+                          title="Bajar sección"
+                          onClick={() => handleMoveSectionOrder(idx, 1)}
+                        >
+                          <ArrowDown size={15} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

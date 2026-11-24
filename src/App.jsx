@@ -19,10 +19,22 @@ import AlbumSection from './components/AlbumSection';
 import AlbumPage from './components/AlbumPage';
 import RsvpForm from './components/RsvpForm';
 import Footer from './components/Footer';
+import CustomHeroSection from './components/CustomHeroSection';
+import SectionBgWrapper from './components/SectionBgWrapper';
 import AdminDashboard from './components/AdminDashboard';
 import './styles/variables.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
+
+const DEFAULT_SECTION_ORDER = [
+  'countdown',
+  'familyQuote',
+  'locations',
+  'dressCodeGifts',
+  'gallery',
+  'album',
+  'rsvp',
+];
 
 class RouteErrorBoundary extends Component {
   constructor(props) {
@@ -91,11 +103,35 @@ function applyEventTheme(eventConfig, isAlbum = false) {
 function resolveMusicEnabled(hero) {
   if (!hero) return false;
   const flag = hero.musicEnabled;
-  // Respeta false explícito (boolean o string 'false'/0) y requiere URL válida
   if (flag === false || flag === 'false' || flag === 0 || flag === '0') {
     return false;
   }
   return Boolean(hero.musicUrl && String(hero.musicUrl).trim().length > 0);
+}
+
+function resolveEffectiveSectionOrder(eventConfig) {
+  const customHeroes = Array.isArray(eventConfig?.customHeroes)
+    ? eventConfig.customHeroes
+    : [];
+  const customIds = customHeroes.map((h) => h.id).filter(Boolean);
+  const validKeys = new Set([...DEFAULT_SECTION_ORDER, ...customIds]);
+
+  const savedOrder = Array.isArray(eventConfig?.sectionOrder)
+    ? eventConfig.sectionOrder.filter((key) => validKeys.has(key))
+    : [];
+
+  const result = [...savedOrder];
+  for (const key of DEFAULT_SECTION_ORDER) {
+    if (!result.includes(key)) {
+      result.push(key);
+    }
+  }
+  for (const cId of customIds) {
+    if (!result.includes(cId)) {
+      result.push(cId);
+    }
+  }
+  return result;
 }
 
 function InvitationView({ eventConfig, slug }) {
@@ -109,8 +145,12 @@ function InvitationView({ eventConfig, slug }) {
     message: 'Estás invitado a celebrar con nosotros',
   };
   const hasMusic = resolveMusicEnabled(hero);
+  const sectionBackgrounds = eventConfig?.sectionBackgrounds || {};
+  const customHeroes = Array.isArray(eventConfig?.customHeroes)
+    ? eventConfig.customHeroes
+    : [];
+  const orderedKeys = resolveEffectiveSectionOrder(eventConfig);
 
-  // Sincronizar estado real del elemento <audio> y pausar si cambia a evento sin música
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -150,8 +190,6 @@ function InvitationView({ eventConfig, slug }) {
         })
         .catch(() => {
           setIsPlaying(false);
-          // Fallback: si un navegador estricto bloqueó la primera llamada,
-          // reintentar automáticamente en el siguiente toque del usuario
           const retryOnNextGesture = () => {
             if (audioRef.current && hasMusic) {
               audioRef.current
@@ -181,6 +219,101 @@ function InvitationView({ eventConfig, slug }) {
     }
   };
 
+  const renderSectionByKey = (key) => {
+    if (key === 'countdown') {
+      if (!hero.dateISO) return null;
+      return (
+        <SectionBgWrapper
+          key={key}
+          sectionBg={sectionBackgrounds.countdown}
+        >
+          <Countdown targetDate={hero.dateISO} />
+        </SectionBgWrapper>
+      );
+    }
+
+    if (key === 'familyQuote') {
+      return (
+        <SectionBgWrapper
+          key={key}
+          sectionBg={sectionBackgrounds.familyQuote}
+        >
+          <FamilyAndQuote
+            quote={eventConfig.quote}
+            familySection={eventConfig.familySection}
+          />
+        </SectionBgWrapper>
+      );
+    }
+
+    if (key === 'locations') {
+      return (
+        <SectionBgWrapper
+          key={key}
+          sectionBg={sectionBackgrounds.locations}
+        >
+          <EventLocations events={eventConfig.events} />
+        </SectionBgWrapper>
+      );
+    }
+
+    if (key === 'dressCodeGifts') {
+      return (
+        <SectionBgWrapper
+          key={key}
+          sectionBg={sectionBackgrounds.dressCodeGifts}
+        >
+          <DressCodeAndGifts
+            dressCode={eventConfig.dressCode}
+            gifts={eventConfig.gifts}
+          />
+        </SectionBgWrapper>
+      );
+    }
+
+    if (key === 'gallery') {
+      return (
+        <SectionBgWrapper
+          key={key}
+          sectionBg={sectionBackgrounds.gallery}
+        >
+          <Gallery gallery={eventConfig.gallery} />
+        </SectionBgWrapper>
+      );
+    }
+
+    if (key === 'album') {
+      return (
+        <SectionBgWrapper
+          key={key}
+          sectionBg={sectionBackgrounds.album}
+        >
+          <AlbumSection album={eventConfig.album} slug={slug} />
+        </SectionBgWrapper>
+      );
+    }
+
+    if (key === 'rsvp') {
+      if (!eventConfig.rsvp) return null;
+      return (
+        <SectionBgWrapper
+          key={key}
+          sectionBg={sectionBackgrounds.rsvp}
+        >
+          <RsvpForm rsvp={eventConfig.rsvp} />
+        </SectionBgWrapper>
+      );
+    }
+
+    // Sección Hero Personalizada
+    const customBlock = customHeroes.find((item) => item.id === key);
+    if (customBlock) {
+      return <CustomHeroSection key={key} block={customBlock} />;
+    }
+
+    return null;
+  };
+
   return (
     <>
       {hasMusic && (
@@ -204,19 +337,9 @@ function InvitationView({ eventConfig, slug }) {
       )}
 
       <Hero hero={hero} />
-      {hero.dateISO && <Countdown targetDate={hero.dateISO} />}
-      <FamilyAndQuote
-        quote={eventConfig.quote}
-        familySection={eventConfig.familySection}
-      />
-      <EventLocations events={eventConfig.events} />
-      <DressCodeAndGifts
-        dressCode={eventConfig.dressCode}
-        gifts={eventConfig.gifts}
-      />
-      <Gallery gallery={eventConfig.gallery} />
-      <AlbumSection album={eventConfig.album} slug={slug} />
-      {eventConfig.rsvp && <RsvpForm rsvp={eventConfig.rsvp} />}
+
+      {orderedKeys.map((sectionKey) => renderSectionByKey(sectionKey))}
+
       {eventConfig.footer && (
         <Footer
           footer={eventConfig.footer}

@@ -120,3 +120,76 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
 }
+
+
+/* Soporte de imagen de fondo opcional por sección */
+.section-with-bg-image {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  color: #ffffff;
+}
+
+.section-bg-image-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.section-bg-image-content {
+  position: relative;
+  z-index: 2;
+}
+
+/* Anula fondos sólidos internos cuando la sección usa fotografía de fondo */
+.section-with-bg-image .countdown-wrapper,
+.section-with-bg-image .locations-bg,
+.section-with-bg-image .gallery-bg,
+.section-with-bg-image .album-invite-section {
+  background-color: transparent !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+.section-with-bg-image .section-title,
+.section-with-bg-image .quote-text,
+.section-with-bg-image .family-group h3,
+.section-with-bg-image .family-group p {
+  color: #ffffff !important;
+}
+
+.section-with-bg-image .section-subtitle,
+.section-with-bg-image .quote-author {
+  color: rgba(255, 255, 255, 0.88) !important;
+}
+
+.section-with-bg-image p {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Tarjetas internas mantienen alto contraste legibles */
+.section-with-bg-image .event-card,
+.section-with-bg-image .detail-card,
+.section-with-bg-image .album-invite-card,
+.section-with-bg-image .countdown-box,
+.section-with-bg-image .rsvp-form,
+.section-with-bg-image .rsvp-success {
+  color: var(--text-primary);
+}
+
+.section-with-bg-image .event-card p,
+.section-with-bg-image .detail-card p,
+.section-with-bg-image .album-invite-card p,
+.section-with-bg-image .rsvp-form p,
+.section-with-bg-image .rsvp-success p {
+  color: var(--text-secondary);
+}
+
+.section-with-bg-image .album-invite-card .section-title {
+  color: var(--text-primary) !important;
+}
+
+.section-with-bg-image .album-invite-card .section-subtitle {
+  color: var(--accent-primary) !important;
+}

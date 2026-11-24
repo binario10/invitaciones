@@ -83,14 +83,125 @@ if (!is_dir($mediaDir)) {
     mkdir($mediaDir, 0755, true);
 }
 
-$filename = str_replace('.', '_', uniqid('asset_', true)) . '.' . $ext;
+/**
+ * Optimiza imágenes estáticas (JPG, PNG, WEBP):
+ * - Corrige orientación EXIF (evita fotos verticales giradas desde celular)
+ * - Escala proporcionalmente si el lado mayor excede 1920 px
+ * - Codifica en formato .webp con calidad 82%
+ * Retorna el nombre final del archivo guardado o null si se debe usar fallback directo.
+ */
+function optimizeAndSaveWebpImage(string $tmpPath, string $sourceExt, string $mediaDir, string $baseId): ?string
+{
+    if (!extension_loaded('gd') || !function_exists('imagewebp')) {
+        return null;
+    }
+
+    // Evitar consumir exceso de memoria en imágenes gigantes
+    @ini_set('memory_limit', '256M');
+
+    $srcImg = null;
+    if ($sourceExt === 'jpg' || $sourceExt === 'jpeg') {
+        $srcImg = @imagecreatefromjpeg($tmpPath);
+        if ($srcImg && function_exists('exif_read_data')) {
+            $exif = @exif_read_data($tmpPath);
+            $orientation = (int)($exif['Orientation'] ?? 1);
+            if ($orientation === 3) {
+                $srcImg = imagerotate($srcImg, 180, 0);
+            } elseif ($orientation === 6) {
+                $srcImg = imagerotate($srcImg, -90, 0);
+            } elseif ($orientation === 8) {
+                $srcImg = imagerotate($srcImg, 90, 0);
+            }
+        }
+    } elseif ($sourceExt === 'png') {
+        $srcImg = @imagecreatefrompng($tmpPath);
+    } elseif ($sourceExt === 'webp') {
+        $srcImg = @imagecreatefromwebp($tmpPath);
+    }
+
+    if (!$srcImg) {
+        return null;
+    }
+
+    // Convertir paletas indexadas (PNG-8) a TrueColor para compatibilidad total con WebP
+    if (function_exists('imagepalettetotruecolor') && !imageistruecolor($srcImg)) {
+        @imagepalettetotruecolor($srcImg);
+    }
+
+    $origW = imagesx($srcImg);
+    $origH = imagesy($srcImg);
+    if ($origW <= 0 || $origH <= 0) {
+        imagedestroy($srcImg);
+        return null;
+    }
+
+    $maxDimension = 1920;
+    $targetW = $origW;
+    $targetH = $origH;
+
+    if ($origW > $maxDimension || $origH > $maxDimension) {
+        if ($origW >= $origH) {
+            $targetW = $maxDimension;
+            $targetH = (int)round(($origH * $maxDimension) / $origW);
+        } else {
+            $targetH = $maxDimension;
+            $targetW = (int)round(($origW * $maxDimension) / $origH);
+        }
+    }
+
+    $finalImg = $srcImg;
+    if ($targetW !== $origW || $targetH !== $origH) {
+        $resized = imagecreatetruecolor($targetW, $targetH);
+        imagealphablending($resized, false);
+        imagesavealpha($resized, true);
+        $transparent = imagecolorallocatealpha($resized, 0, 0, 0, 127);
+        imagefilledrectangle($resized, 0, 0, $targetW, $targetH, $transparent);
+        imagecopyresampled($resized, $srcImg, 0, 0, 0, 0, $targetW, $targetH, $origW, $origH);
+        imagedestroy($srcImg);
+        $finalImg = $resized;
+    } else {
+        imagealphablending($finalImg, false);
+        imagesavealpha($finalImg, true);
+    }
+
+    $webpFilename = $baseId . '.webp';
+    $destination = $mediaDir . DIRECTORY_SEPARATOR . $webpFilename;
+    $saved = @imagewebp($finalImg, $destination, 82);
+    imagedestroy($finalImg);
+
+    if ($saved && is_file($destination) && filesize($destination) > 0) {
+        return $webpFilename;
+    }
+
+    return null;
+}
+
+$tmpPath = $_FILES['asset']['tmp_name'];
+$baseId = str_replace('.', '_', uniqid('asset_', true));
+
+// Intentar optimización automática a WebP para imágenes estáticas (JPG, PNG, WEBP)
+if ($mediaType === 'image' && in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+    $optimizedFilename = optimizeAndSaveWebpImage($tmpPath, $ext, $mediaDir, $baseId);
+    if ($optimizedFilename !== null) {
+        sendJson([
+            'success'   => true,
+            'url'       => '/eventos/' . $slug . '/media/' . $optimizedFilename,
+            'mediaType' => 'image',
+            'optimized' => true,
+        ]);
+    }
+}
+
+// Fallback directo para audio (MP3), videos (MP4/MOV/WEBM), GIF o entornos sin GD WebP
+$filename = $baseId . '.' . $ext;
 $destination = $mediaDir . DIRECTORY_SEPARATOR . $filename;
 
-if (move_uploaded_file($_FILES['asset']['tmp_name'], $destination)) {
+if (move_uploaded_file($tmpPath, $destination)) {
     sendJson([
         'success'   => true,
         'url'       => '/eventos/' . $slug . '/media/' . $filename,
         'mediaType' => $mediaType,
+        'optimized' => false,
     ]);
 }
 
