@@ -5,7 +5,7 @@
 // Contraseña por defecto: Admin2026!
 // Para generar un nuevo hash en terminal:
 // php -r "echo password_hash('TuNuevaClave', PASSWORD_DEFAULT) . PHP_EOL;"
-define('ADMIN_PASSWORD_HASH', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi');
+define('ADMIN_PASSWORD_HASH', '$2y$12$4tVjoUowjUnzlveqPldHkeZriKOMcwf2Bq5tygeDd5gwADHPMnoVe');
 define('ADMIN_TOKEN_SECRET', 'cambia_esta_clave_secreta_uberreyes_invite_2026_x9a7');
 define('ADMIN_TOKEN_TTL', 86400); // 24 horas en segundos
 

@@ -7,14 +7,17 @@ export default function WelcomeOverlay({ isOpen, welcome, onEnter }) {
   const handleOpenEnvelope = () => {
     if (isOpening) return;
     setIsOpening(true);
-    // Dispara inmediatamente la entrada/música dentro del gesto del usuario
-    // mientras la solapa del sobre se abre suavemente
-    setTimeout(() => {
-      onEnter();
-    }, 420);
+    // Ejecutar onEnter de forma síncrona dentro del gesto de clic del usuario
+    // para que los navegadores móviles (iOS Safari / Chrome) permitan reproducir el audio
+    if (typeof onEnter === 'function') {
+      onEnter(true);
+    }
   };
 
-  const nmbuttonLabel = welcome.buttonText || 'Abrir Invitación';
+  const initials = welcome?.initials || 'I';
+  const message =
+    welcome?.message || 'Estás invitado a celebrar este gran momento';
+  const buttonLabel = welcome?.buttonText || 'Abrir Invitación';
 
   return (
     <div
@@ -35,7 +38,7 @@ export default function WelcomeOverlay({ isOpen, welcome, onEnter }) {
         {/* Mensaje superior */}
         <div className="envelope-header-text">
           <span className="envelope-eyebrow">Invitación Especial</span>
-          <p className="welcome-text">{welcome.message}</p>
+          <p className="welcome-text">{message}</p>
         </div>
 
         {/* Sello de cera dorado en el centro */}
@@ -46,7 +49,7 @@ export default function WelcomeOverlay({ isOpen, welcome, onEnter }) {
             onClick={handleOpenEnvelope}
             aria-label={buttonLabel}
           >
-            <span className="seal-initials">{welcome.initials}</span>
+            <span className="seal-initials">{initials}</span>
             <span className="seal-action-label">Abrir</span>
           </button>
 

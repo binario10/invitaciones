@@ -141,13 +141,18 @@
   transition: all 0.2s ease;
 }
 
-.admin-mini-btn:hover {
+.admin-mini-btn:hover:not(:disabled) {
   background: #8c7a6b;
   border-color: #8c7a6b;
   color: #ffffff;
 }
 
-.admin-mini-btn.danger:hover {
+.admin-mini-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.admin-mini-btn.danger:hover:not(:disabled) {
   background: #b91c1c;
   border-color: #b91c1c;
   color: #ffffff;
@@ -328,64 +333,70 @@
   z-index: 50;
 }
 
-/* Modal bloqueante con barra de progreso real para subidas en Admin */
-.admin-upload-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 9800;
-  background: rgba(25, 22, 20, 0.72);
+/* Gestor visual de la Galería del Carrusel dentro del Admin */
+.admin-gallery-manager-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.admin-gallery-item-card {
+  background: #faf8f5;
+  border: 1px solid #dcd5ca;
+  padding: 0.65rem;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
+  flex-direction: column;
+  gap: 0.55rem;
 }
 
-.admin-upload-modal {
-  background: #ffffff;
+.admin-gallery-preview-box {
+  position: relative;
   width: 100%;
-  max-width: 390px;
-  padding: 2.25rem 1.75rem;
+  aspect-ratio: 4 / 3;
+  background: #1c1a18;
+  overflow: hidden;
   border: 1px solid #e5dfd5;
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
-  text-align: center;
 }
 
-.admin-upload-title {
-  font-family: var(--font-serif);
-  font-size: 1.55rem;
-  color: #2c2825;
-  margin-bottom: 0.35rem;
-}
-
-.admin-upload-filename {
-  font-size: 0.78rem;
-  color: #6e6862;
-  margin-bottom: 1.25rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.admin-progress-track {
+.admin-gallery-preview-box img,
+.admin-gallery-preview-box video {
   width: 100%;
-  height: 10px;
-  background-color: #eceae6;
-  border-radius: 999px;
-  overflow: hidden;
-  margin-bottom: 0.65rem;
-}
-
-.admin-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #8c7a6b 0%, #6e5e51 100%);
-  border-radius: 999px;
-  transition: width 0.15s ease;
+  object-fit: cover;
+  display: block;
 }
 
-.admin-progress-pct {
-  font-size: 0.85rem;
+.admin-gallery-order-badge {
+  position: absolute;
+  top: 0.4rem;
+  left: 0.4rem;
+  background: rgba(25, 22, 20, 0.82);
+  color: #ffffff;
+  font-size: 0.7rem;
   font-weight: 600;
-  color: #2c2825;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.admin-gallery-type-badge {
+  position: absolute;
+  bottom: 0.4rem;
+  left: 0.4rem;
+  background: rgba(140, 122, 107, 0.92);
+  color: #ffffff;
+  font-size: 0.65rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.admin-gallery-controls {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.35rem;
 }
 
 /* Gestor de Álbum dentro del Admin */

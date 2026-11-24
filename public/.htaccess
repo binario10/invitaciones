@@ -2,6 +2,10 @@
   RewriteEngine On
   RewriteBase /
 
+  # Preservar cabecera Authorization para el panel /admin
+  RewriteCond %{HTTP:Authorization} ^(.*)
+  RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
+
   # Excluir carpetas físicas del backend PHP y eventos de clientes
   RewriteRule ^api/ - [L]
   RewriteRule ^eventos/ - [L]
@@ -13,4 +17,12 @@
 
   # Redirigir cualquier ruta SPA (/:slug, /:slug/album, /admin) a index.html
   RewriteRule ^ index.html [L]
+</IfModule>
+
+# Ampliar límites de subida en PHP (si el servidor Apache/Hostinger lo permite)
+<IfModule mod_php.c>
+  php_value upload_max_filesize 128M
+  php_value post_max_size 132M
+  php_value max_execution_time 300
+  php_value max_input_time 300
 </IfModule>

@@ -1,10 +1,11 @@
 {
   "name": "invite-uberreyes-platform",
   "private": true,
-  "version": "5.0.0",
+  "version": "5.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "php": "php -d upload_max_filesize=256M -d post_max_size=260M -d max_execution_time=300 -d max_input_time=300 -S localhost:8000",
     "build": "vite build",
     "preview": "vite preview"
   },

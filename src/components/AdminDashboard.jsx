@@ -10,9 +10,11 @@ import {
   Camera,
   Upload,
   ArrowLeft,
+  ArrowRight,
   Save,
   LogOut,
   Play,
+  Link2,
 } from 'lucide-react';
 import { eventTemplates } from '../data/eventTemplates';
 import { colorPalettes } from '../data/colorPalettes';
@@ -30,6 +32,14 @@ const TYPE_LABELS = {
   custom: 'Evento Social',
 };
 
+const VIDEO_EXT_REGEX = /\.(mp4|mov|webm|m4v|avi|mkv)(\?.*)?$/i;
+
+function isVideoMedia(item) {
+  if (!item) return false;
+  if (item.type === 'video') return true;
+  return VIDEO_EXT_REGEX.test(item.url || '');
+}
+
 export default function AdminDashboard() {
   const [token, setToken] = useState(() => sessionStorage.getItem(TOKEN_KEY) || '');
   const [password, setPassword] = useState('');
@@ -42,6 +52,7 @@ export default function AdminDashboard() {
   const [isNewEvent, setIsNewEvent] = useState(false);
   const [saving, setSaving] = useState(false);
   const [copiedSlug, setCopiedSlug] = useState('');
+  const [newGalleryUrl, setNewGalleryUrl] = useState('');
 
   // Estado unificado de subida con barra de progreso real (XMLHttpRequest)
   const [uploadState, setUploadState] = useState({
@@ -117,11 +128,28 @@ export default function AdminDashboard() {
     }
   };
 
+  const normalizeEventForEditor = (rawEvent) => {
+    const ev = JSON.parse(JSON.stringify(rawEvent));
+    if (!ev.gallery) {
+      ev.gallery = {
+        enabled: true,
+        subtitle: 'Nuestros Momentos',
+        title: 'Galería',
+        photos: [],
+      };
+    }
+    if (!Array.isArray(ev.gallery.photos)) {
+      ev.gallery.photos = [];
+    }
+    return ev;
+  };
+
   const startCreateFromTemplate = (templateKey) => {
-    const clone = JSON.parse(JSON.stringify(eventTemplates[templateKey]));
+    const clone = normalizeEventForEditor(eventTemplates[templateKey]);
     setEditingEvent(clone);
     setIsNewEvent(true);
     setManagingAlbumSlug('');
+    setNewGalleryUrl('');
   };
 
   const startEditExisting = async (slug) => {
@@ -134,9 +162,10 @@ export default function AdminDashboard() {
       );
       const data = await res.json();
       if (data.success && data.event) {
-        setEditingEvent(data.event);
+        setEditingEvent(normalizeEventForEditor(data.event));
         setIsNewEvent(false);
         setManagingAlbumSlug('');
+        setNewGalleryUrl('');
       }
     } catch {
       alert('Error al cargar los datos del evento.');
@@ -225,7 +254,7 @@ export default function AdminDashboard() {
     setTimeout(() => setCopiedSlug(''), 2200);
   };
 
-  // Subida con XMLHttpRequest y modal global de progreso real
+  // Subida individual con XMLHttpRequest y modal global de progreso real
   const handleAssetUpload = async (file, fieldKey, labelTitle, onSuccessUrl) => {
     if (!file || uploadState.active) return;
     const cleanSlug = editingEvent?.slug?.trim().toLowerCase();
@@ -262,7 +291,7 @@ export default function AdminDashboard() {
       });
 
       if (data?.url) {
-        onSuccessUrl(data.url);
+        onSuccessUrl(data.url, data.mediaType);
       }
     } catch (err) {
       alert(err.message || 'Error al subir archivo al servidor.');
@@ -277,6 +306,132 @@ export default function AdminDashboard() {
         });
       }, 450);
     }
+  };
+
+  // Subida múltiple secuencial con barra de progreso real para la Galería (fotos y videos)
+  const handleGalleryMultiUpload = async (fileList) => {
+    const files = Array.from(fileList || []);
+    if (files.length === 0 || uploadState.active) return;
+
+    const cleanSlug = editingEvent?.slug?.trim().toLowerCase();
+    if (!cleanSlug) {
+      alert(
+        'Primero escribe el identificador de URL (slug) del evento en la parte superior.'
+      );
+      return;
+    }
+
+    const newlyUploaded = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const formData = new FormData();
+      formData.append('slug', cleanSlug);
+      formData.append('asset', file);
+
+      setUploadState({
+        active: true,
+        fieldKey: 'gallery',
+        title:
+          files.length > 1
+            ? `Subiendo galería (${i + 1} de ${files.length})...`
+            : 'Subiendo a galería...',
+        fileName: file.name,
+        progress: 0,
+      });
+
+      try {
+        const data = await uploadWithProgress({
+          url: `${API_URL}/admin_upload_asset.php`,
+          formData,
+          headers: { Authorization: `Bearer ${token}` },
+          onProgress: (pct) => {
+            setUploadState((prev) => ({
+              ...prev,
+              progress: pct,
+            }));
+          },
+        });
+
+        if (data?.url) {
+          const isVid =
+            data.mediaType === 'video' ||
+            file.type.startsWith('video/') ||
+            VIDEO_EXT_REGEX.test(file.name);
+
+          newlyUploaded.push({
+            id: `gal_${Date.now()}_${i}`,
+            url: data.url,
+            type: isVid ? 'video' : 'image',
+            alt: '',
+          });
+        }
+      } catch (err) {
+        alert(`Error con "${file.name}": ${err.message}`);
+      }
+    }
+
+    if (newlyUploaded.length > 0) {
+      setEditingEvent((prev) => {
+        const copy = JSON.parse(JSON.stringify(prev));
+        copy.gallery.photos = [...(copy.gallery.photos || []), ...newlyUploaded];
+        return copy;
+      });
+    }
+
+    setTimeout(() => {
+      setUploadState({
+        active: false,
+        fieldKey: '',
+        title: 'Subiendo archivo...',
+        fileName: '',
+        progress: 0,
+      });
+    }, 450);
+  };
+
+  const handleAddGalleryByUrl = () => {
+    const trimmed = newGalleryUrl.trim();
+    if (!trimmed) return;
+    const isVid = VIDEO_EXT_REGEX.test(trimmed);
+    setEditingEvent((prev) => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      copy.gallery.photos = [
+        ...(copy.gallery.photos || []),
+        {
+          id: `gal_${Date.now()}`,
+          url: trimmed,
+          type: isVid ? 'video' : 'image',
+          alt: '',
+        },
+      ];
+      return copy;
+    });
+    setNewGalleryUrl('');
+  };
+
+  const handleMoveGalleryItem = (index, direction) => {
+    setEditingEvent((prev) => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      const list = copy.gallery.photos || [];
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= list.length) return prev;
+      const temp = list[index];
+      list[index] = list[targetIndex];
+      list[targetIndex] = temp;
+      copy.gallery.photos = list;
+      return copy;
+    });
+  };
+
+  const handleRemoveGalleryItem = (index) => {
+    setEditingEvent((prev) => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      copy.gallery.photos = (copy.gallery.photos || []).filter(
+        (_, i) => i !== index
+      );
+      return copy;
+    });
   };
 
   const handleSaveEvent = async (e) => {
@@ -389,6 +544,8 @@ export default function AdminDashboard() {
   const isGiftsEnabled = Boolean(editingEvent?.gifts?.enabled);
   const isBankEnabled = editingEvent?.gifts?.bank?.enabled !== false;
   const isStoreEnabled = editingEvent?.gifts?.storeRegistry?.enabled !== false;
+  const isGalleryEnabled = editingEvent?.gallery?.enabled !== false;
+  const galleryPhotos = editingEvent?.gallery?.photos || [];
 
   return (
     <div className="admin-shell">
@@ -1542,11 +1699,215 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* 6. ÁLBUM COLABORATIVO Y RSVP */}
+            {/* 6. GALERÍA / CARRUSEL DE FOTOS Y VIDEOS DE LA INVITACIÓN */}
+            <div className="editor-card">
+              <h3 className="editor-section-title">
+                <span>6. Galería / Carrusel de Fotos y Videos</span>
+                <label className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={isGalleryEnabled}
+                    onChange={(e) =>
+                      updateField('gallery.enabled', e.target.checked)
+                    }
+                  />
+                  Mostrar Galería en Invitación
+                </label>
+              </h3>
+
+              {isGalleryEnabled && (
+                <>
+                  <div className="editor-grid-2">
+                    <div className="field-box">
+                      <label>Subtítulo de la Galería</label>
+                      <input
+                        type="text"
+                        className="field-input"
+                        placeholder="Nuestros Momentos"
+                        value={editingEvent.gallery?.subtitle || ''}
+                        onChange={(e) =>
+                          updateField('gallery.subtitle', e.target.value)
+                        }
+                      />
+                    </div>
+                    <div className="field-box">
+                      <label>Título de la Galería</label>
+                      <input
+                        type="text"
+                        className="field-input"
+                        placeholder="Galería"
+                        value={editingEvent.gallery?.title || ''}
+                        onChange={(e) =>
+                          updateField('gallery.title', e.target.value)
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  {/* Controles para subir archivos o agregar URL */}
+                  <div className="editor-grid-2" style={{ alignItems: 'end' }}>
+                    <div className="field-box" style={{ marginBottom: 0 }}>
+                      <label>Subir Fotos o Videos (Selección Múltiple)</label>
+                      <label
+                        className="btn-solid"
+                        style={{ width: '100%', cursor: 'pointer' }}
+                      >
+                        <Upload size={16} />
+                        Seleccionar Fotos / Videos
+                        <input
+                          type="file"
+                          accept="image/*,video/mp4,video/quicktime,video/webm,video/x-m4v"
+                          multiple
+                          hidden
+                          disabled={uploadState.active}
+                          onChange={(e) => {
+                            handleGalleryMultiUpload(e.target.files);
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                    </div>
+
+                    <div className="field-box" style={{ marginBottom: 0 }}>
+                      <label>O agregar mediante URL externa</label>
+                      <div className="upload-inline-row">
+                        <input
+                          type="url"
+                          className="field-input"
+                          placeholder="https://... (.jpg, .png, .mp4)"
+                          value={newGalleryUrl}
+                          onChange={(e) => setNewGalleryUrl(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          className="admin-mini-btn"
+                          style={{ whiteSpace: 'nowrap', padding: '0.72rem 0.9rem' }}
+                          onClick={handleAddGalleryByUrl}
+                        >
+                          <Link2 size={15} /> Agregar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {galleryPhotos.length === 0 ? (
+                    <p
+                      style={{
+                        color: '#6e6862',
+                        fontSize: '0.85rem',
+                        marginTop: '1.25rem',
+                        padding: '1rem',
+                        background: '#faf8f5',
+                        border: '1px dashed #dcd5ca',
+                        textAlign: 'center',
+                      }}
+                    >
+                      No hay elementos en la galería. Sube fotos o videos para
+                      activar el carrusel.
+                    </p>
+                  ) : (
+                    <>
+                      <p
+                        style={{
+                          fontSize: '0.78rem',
+                          color: '#6e6862',
+                          marginTop: '1.1rem',
+                        }}
+                      >
+                        {galleryPhotos.length === 1
+                          ? '1 elemento cargado (se mostrará centrado). Agrega 2 o más para activar el carrusel automático.'
+                          : `${galleryPhotos.length} elementos cargados (se mostrarán en carrusel interactivo). Usa las flechas para cambiar el orden.`}
+                      </p>
+
+                      <div className="admin-gallery-manager-grid">
+                        {galleryPhotos.map((item, idx) => {
+                          const isVid = isVideoMedia(item);
+                          return (
+                            <div
+                              key={item.id || idx}
+                              className="admin-gallery-item-card"
+                            >
+                              <div className="admin-gallery-preview-box">
+                                {isVid ? (
+                                  <>
+                                    <video
+                                      src={`${item.url}#t=0.1`}
+                                      muted
+                                      playsInline
+                                      preload="metadata"
+                                    />
+                                    <span className="admin-gallery-type-badge">
+                                      <Play size={10} fill="#ffffff" /> Video
+                                    </span>
+                                  </>
+                                ) : (
+                                  <img
+                                    src={item.url}
+                                    alt={item.alt || `Slide ${idx + 1}`}
+                                    loading="lazy"
+                                  />
+                                )}
+                                <span className="admin-gallery-order-badge">
+                                  #{idx + 1}
+                                </span>
+                              </div>
+
+                              <input
+                                type="text"
+                                className="field-input"
+                                style={{ padding: '0.45rem 0.6rem', fontSize: '0.78rem' }}
+                                placeholder="Descripción corta (opcional)"
+                                value={item.alt || ''}
+                                onChange={(e) => {
+                                  const next = [...galleryPhotos];
+                                  next[idx] = { ...next[idx], alt: e.target.value };
+                                  updateField('gallery.photos', next);
+                                }}
+                              />
+
+                              <div className="admin-gallery-controls">
+                                <button
+                                  type="button"
+                                  className="admin-mini-btn"
+                                  disabled={idx === 0}
+                                  title="Mover antes"
+                                  onClick={() => handleMoveGalleryItem(idx, -1)}
+                                >
+                                  <ArrowLeft size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="admin-mini-btn"
+                                  disabled={idx === galleryPhotos.length - 1}
+                                  title="Mover después"
+                                  onClick={() => handleMoveGalleryItem(idx, 1)}
+                                >
+                                  <ArrowRight size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="admin-mini-btn danger"
+                                  title="Eliminar de la galería"
+                                  onClick={() => handleRemoveGalleryItem(idx)}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* 7. ÁLBUM COLABORATIVO Y RSVP */}
             <div className="editor-card">
               <h3 className="editor-section-title">
                 <span>
-                  6. Álbum Colaborativo (/{editingEvent.slug || 'evento'}/album)
+                  7. Álbum Colaborativo (/{editingEvent.slug || 'evento'}/album)
                   y RSVP
                 </span>
                 <label className="checkbox-row">

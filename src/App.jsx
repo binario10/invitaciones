@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Component } from 'react';
 import {
   BrowserRouter,
   Routes,
@@ -24,17 +24,78 @@ import './styles/variables.css';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
+class RouteErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, errorMsg: '' };
+  }
+
+  static getDerivedStateFromError(error) {
+    return {
+      hasError: true,
+      errorMsg: error?.message || 'Error inesperado al renderizar la página.',
+    };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="state-screen">
+          <h1
+            style={{
+              fontFamily: 'var(--font-serif)',
+              fontSize: '2.2rem',
+              marginBottom: '0.75rem',
+            }}
+          >
+            Ocurrió un problema al cargar la invitación
+          </h1>
+          <p
+            style={{
+              color: 'var(--text-secondary)',
+              marginBottom: '1.5rem',
+              maxWidth: '480px',
+            }}
+          >
+            {this.state.errorMsg}
+          </p>
+          <button
+            type="button"
+            className="btn-solid"
+            onClick={() => window.location.reload()}
+          >
+            Recargar página
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function applyEventTheme(eventConfig, isAlbum = false) {
   if (!eventConfig) return;
   document.title = isAlbum
-    ? `Álbum | ${eventConfig.pageTitle}`
-    : eventConfig.pageTitle;
+    ? `Álbum | ${eventConfig.pageTitle || 'Recuerdos'}`
+    : eventConfig.pageTitle || 'Invitación Digital';
 
-  if (eventConfig.theme) {
+  if (eventConfig.theme && typeof eventConfig.theme === 'object') {
     Object.entries(eventConfig.theme).forEach(([cssVar, value]) => {
-      document.documentElement.style.setProperty(cssVar, value);
+      if (value) {
+        document.documentElement.style.setProperty(cssVar, value);
+      }
     });
   }
+}
+
+function resolveMusicEnabled(hero) {
+  if (!hero) return false;
+  const flag = hero.musicEnabled;
+  // Respeta false explícito (boolean o string 'false'/0) y requiere URL válida
+  if (flag === false || flag === 'false' || flag === 0 || flag === '0') {
+    return false;
+  }
+  return Boolean(hero.musicUrl && String(hero.musicUrl).trim().length > 0);
 }
 
 function InvitationView({ eventConfig, slug }) {
@@ -42,17 +103,68 @@ function InvitationView({ eventConfig, slug }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef(null);
 
-  const hasMusic =
-    eventConfig.hero.musicEnabled !== false &&
-    Boolean(eventConfig.hero.musicUrl?.trim());
+  const hero = eventConfig?.hero || {};
+  const welcome = eventConfig?.welcome || {
+    initials: 'I',
+    message: 'Estás invitado a celebrar con nosotros',
+  };
+  const hasMusic = resolveMusicEnabled(hero);
 
-  const handleEnter = () => {
+  // Sincronizar estado real del elemento <audio> y pausar si cambia a evento sin música
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (!hasMusic) {
+      audio.pause();
+      setIsPlaying(false);
+      return;
+    }
+
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    audio.addEventListener('play', onPlay);
+    audio.addEventListener('pause', onPause);
+    return () => {
+      audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('pause', onPause);
+    };
+  }, [hasMusic, hero.musicUrl]);
+
+  const handleEnter = (withMusic = true) => {
     setShowOverlay(false);
-    if (hasMusic && audioRef.current) {
-      audioRef.current
-        .play()
-        .then(() => setIsPlaying(true))
-        .catch(() => setIsPlaying(false));
+
+    if (!withMusic || !hasMusic || !audioRef.current) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      setIsPlaying(false);
+      return;
+    }
+
+    const playPromise = audioRef.current.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          setIsPlaying(true);
+        })
+        .catch(() => {
+          setIsPlaying(false);
+          // Fallback: si un navegador estricto bloqueó la primera llamada,
+          // reintentar automáticamente en el siguiente toque del usuario
+          const retryOnNextGesture = () => {
+            if (audioRef.current && hasMusic) {
+              audioRef.current
+                .play()
+                .then(() => setIsPlaying(true))
+                .catch(() => {});
+            }
+            window.removeEventListener('pointerdown', retryOnNextGesture);
+          };
+          window.addEventListener('pointerdown', retryOnNextGesture, {
+            once: true,
+          });
+        });
     }
   };
 
@@ -62,8 +174,10 @@ function InvitationView({ eventConfig, slug }) {
       audioRef.current.pause();
       setIsPlaying(false);
     } else {
-      audioRef.current.play();
-      setIsPlaying(true);
+      audioRef.current
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch(() => setIsPlaying(false));
     }
   };
 
@@ -72,15 +186,16 @@ function InvitationView({ eventConfig, slug }) {
       {hasMusic && (
         <audio
           ref={audioRef}
-          src={eventConfig.hero.musicUrl}
+          src={hero.musicUrl}
           loop
-          preload="none"
+          preload="auto"
+          playsInline
         />
       )}
 
       <WelcomeOverlay
         isOpen={showOverlay}
-        welcome={eventConfig.welcome}
+        welcome={welcome}
         onEnter={handleEnter}
       />
 
@@ -88,8 +203,8 @@ function InvitationView({ eventConfig, slug }) {
         <MusicPlayer isPlaying={isPlaying} onToggle={toggleMusic} />
       )}
 
-      <Hero hero={eventConfig.hero} />
-      <Countdown targetDate={eventConfig.hero.dateISO} />
+      <Hero hero={hero} />
+      {hero.dateISO && <Countdown targetDate={hero.dateISO} />}
       <FamilyAndQuote
         quote={eventConfig.quote}
         familySection={eventConfig.familySection}
@@ -101,11 +216,13 @@ function InvitationView({ eventConfig, slug }) {
       />
       <Gallery gallery={eventConfig.gallery} />
       <AlbumSection album={eventConfig.album} slug={slug} />
-      <RsvpForm rsvp={eventConfig.rsvp} />
-      <Footer
-        footer={eventConfig.footer}
-        dateDisplay={eventConfig.hero.dateDisplay}
-      />
+      {eventConfig.rsvp && <RsvpForm rsvp={eventConfig.rsvp} />}
+      {eventConfig.footer && (
+        <Footer
+          footer={eventConfig.footer}
+          dateDisplay={hero.dateDisplay || ''}
+        />
+      )}
     </>
   );
 }
@@ -150,11 +267,23 @@ function DynamicEventLoader({ mode }) {
   if (status === 'not-found' || !eventConfig) {
     return (
       <div className="state-screen">
-        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '2.5rem', marginBottom: '0.75rem' }}>
+        <h1
+          style={{
+            fontFamily: 'var(--font-serif)',
+            fontSize: '2.5rem',
+            marginBottom: '0.75rem',
+          }}
+        >
           Invitación no encontrada
         </h1>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-          Verifica que el enlace sea correcto o solicita el link actualizado a los anfitriones.
+        <p
+          style={{
+            color: 'var(--text-secondary)',
+            marginBottom: '1.5rem',
+          }}
+        >
+          Verifica que el enlace sea correcto o solicita el link actualizado a
+          los anfitriones.
         </p>
         <Link to="/karina-brayan" className="btn-outline">
           Ver invitación de muestra
@@ -173,12 +302,20 @@ function DynamicEventLoader({ mode }) {
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Navigate to="/karina-brayan" replace />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/:slug" element={<DynamicEventLoader mode="invite" />} />
-        <Route path="/:slug/album" element={<DynamicEventLoader mode="album" />} />
-      </Routes>
+      <RouteErrorBoundary>
+        <Routes>
+          <Route path="/" element={<Navigate to="/karina-brayan" replace />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route
+            path="/:slug"
+            element={<DynamicEventLoader mode="invite" />}
+          />
+          <Route
+            path="/:slug/album"
+            element={<DynamicEventLoader mode="album" />}
+          />
+        </Routes>
+      </RouteErrorBoundary>
     </BrowserRouter>
   );
 }
