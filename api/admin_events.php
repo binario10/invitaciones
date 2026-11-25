@@ -1,124 +1,89 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/demo_seeds.php';
 handleCors('GET, POST, DELETE, OPTIONS');
 requireAdminAuth();
-ensureDemoEventExists();
 
+ensureAllApatzinganDemosSeeded();
 $baseDir = getEventosBaseDir();
-$method = $_SERVER['REQUEST_METHOD'];
 
-function deleteDirectoryRecursive($dir) {
-    if (!is_dir($dir)) return;
-    $items = scandir($dir);
-    foreach ($items as $item) {
-        if ($item === '.' || $item === '..') continue;
-        $path = $dir . DIRECTORY_SEPARATOR . $item;
-        if (is_dir($path)) {
-            deleteDirectoryRecursive($path);
-        } else {
-            @unlink($path);
-        }
-    }
-    @rmdir($dir);
-}
-
-if ($method === 'GET') {
-    $slugParam = $_GET['slug'] ?? null;
-    if ($slugParam) {
-        $slug = sanitizeSlug($slugParam);
-        if (!$slug) {
-            sendJson(['success' => false, 'message' => 'Slug inválido'], 400);
-        }
-        $configFile = $baseDir . DIRECTORY_SEPARATOR . $slug . DIRECTORY_SEPARATOR . 'config.json';
-        if (!file_exists($configFile)) {
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    $slug = sanitizeSlug($_GET['slug'] ?? '');
+    if ($slug) {
+        $cfgFile = $baseDir . DIRECTORY_SEPARATOR . $slug . DIRECTORY_SEPARATOR . 'config.json';
+        if (!is_file($cfgFile)) {
             sendJson(['success' => false, 'message' => 'Evento no encontrado'], 404);
         }
-        $config = json_decode(file_get_contents($configFile), true);
-        sendJson(['success' => true, 'event' => $config]);
+        $data = json_decode((string)file_get_contents($cfgFile), true);
+        sendJson(['success' => true, 'event' => $data]);
     }
 
     $events = [];
-    $dirs = scandir($baseDir);
-    foreach ($dirs as $entry) {
-        if ($entry === '.' || $entry === '..') continue;
-        $eventDir = $baseDir . DIRECTORY_SEPARATOR . $entry;
-        $configFile = $eventDir . DIRECTORY_SEPARATOR . 'config.json';
-        if (is_dir($eventDir) && file_exists($configFile)) {
-            $cfg = json_decode(file_get_contents($configFile), true);
-            $albumFile = $eventDir . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'album_data.json';
-            $mediaCount = 0;
-            if (file_exists($albumFile)) {
-                $albumItems = json_decode(file_get_contents($albumFile), true);
-                if (is_array($albumItems)) {
-                    $mediaCount = count($albumItems);
+    if (is_dir($baseDir)) {
+        $dirs = scandir($baseDir);
+        foreach ($dirs as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+            $eventPath = $baseDir . DIRECTORY_SEPARATOR . $entry;
+            $cfgFile = $eventPath . DIRECTORY_SEPARATOR . 'config.json';
+            if (is_dir($eventPath) && is_file($cfgFile)) {
+                $cfg = json_decode((string)file_get_contents($cfgFile), true);
+                if (is_array($cfg)) {
+                    $mediaDir = $eventPath . DIRECTORY_SEPARATOR . 'media';
+                    $mediaCount = 0;
+                    if (is_dir($mediaDir)) {
+                        $files = scandir($mediaDir);
+                        foreach ($files as $f) {
+                            if ($f !== '.' && $f !== '..' && is_file($mediaDir . DIRECTORY_SEPARATOR . $f)) {
+                                $mediaCount++;
+                            }
+                        }
+                    }
+                    $events[] = [
+                        'slug'        => $cfg['slug'] ?? $entry,
+                        'eventType'   => $cfg['eventType'] ?? 'custom',
+                        'pageTitle'   => $cfg['pageTitle'] ?? $entry,
+                        'dateDisplay' => $cfg['hero']['dateDisplay'] ?? '',
+                        'heroImage'   => $cfg['hero']['heroImage'] ?? '',
+                        'mediaCount'  => $mediaCount,
+                    ];
                 }
             }
-            $events[] = [
-                'slug'          => $entry,
-                'eventType'     => $cfg['eventType'] ?? 'wedding',
-                'pageTitle'     => $cfg['pageTitle'] ?? $entry,
-                'primaryName'   => $cfg['hero']['primaryName'] ?? $entry,
-                'secondaryName' => $cfg['hero']['secondaryName'] ?? '',
-                'dateDisplay'   => $cfg['hero']['dateDisplay'] ?? '',
-                'heroImage'     => $cfg['hero']['heroImage'] ?? '',
-                'mediaCount'    => $mediaCount,
-                'updatedAt'     => $cfg['updatedAt'] ?? '',
-            ];
         }
     }
-
-    usort($events, function ($a, $b) {
-        return strtotime($b['updatedAt'] ?? '1970-01-01') <=> strtotime($a['updatedAt'] ?? '1970-01-01');
-    });
 
     sendJson(['success' => true, 'events' => $events]);
 }
 
-if ($method === 'POST') {
-    $payload = json_decode(file_get_contents('php://input'), true);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $raw = file_get_contents('php://input');
+    $payload = json_decode((string)$raw, true);
     if (!is_array($payload)) {
         sendJson(['success' => false, 'message' => 'JSON inválido'], 400);
     }
 
     $slug = sanitizeSlug($payload['slug'] ?? '');
     if (!$slug) {
-        sendJson([
-            'success' => false,
-            'message' => 'El identificador (URL slug) es inválido o está reservado (usa solo letras minúsculas, números y guiones).',
-        ], 400);
+        sendJson(['success' => false, 'message' => 'El identificador (slug) de la URL es obligatorio'], 400);
     }
+    $payload['slug'] = $slug;
 
     $eventDir = $baseDir . DIRECTORY_SEPARATOR . $slug;
-    $mediaDir = $eventDir . DIRECTORY_SEPARATOR . 'media';
-    $uploadsDir = $eventDir . DIRECTORY_SEPARATOR . 'uploads';
-
-    if (!is_dir($eventDir)) mkdir($eventDir, 0755, true);
-    if (!is_dir($mediaDir)) mkdir($mediaDir, 0755, true);
-    if (!is_dir($uploadsDir)) mkdir($uploadsDir, 0755, true);
-
-    $albumDataFile = $uploadsDir . DIRECTORY_SEPARATOR . 'album_data.json';
-    if (!file_exists($albumDataFile)) {
-        file_put_contents($albumDataFile, '[]');
+    if (!is_dir($eventDir . DIRECTORY_SEPARATOR . 'media')) {
+        mkdir($eventDir . DIRECTORY_SEPARATOR . 'media', 0755, true);
     }
 
-    $payload['slug'] = $slug;
-    $payload['updatedAt'] = date('c');
+    $cfgFile = $eventDir . DIRECTORY_SEPARATOR . 'config.json';
+    $encoded = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if (file_put_contents($cfgFile, $encoded) === false) {
+        sendJson(['success' => false, 'message' => 'No se pudo guardar la invitación'], 500);
+    }
 
-    $configFile = $eventDir . DIRECTORY_SEPARATOR . 'config.json';
-    file_put_contents(
-        $configFile,
-        json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-        LOCK_EX
-    );
-
-    sendJson([
-        'success' => true,
-        'slug'    => $slug,
-        'message' => 'Invitación guardada correctamente',
-    ]);
+    sendJson(['success' => true, 'slug' => $slug]);
 }
 
-if ($method === 'DELETE') {
+if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
     $slug = sanitizeSlug($_GET['slug'] ?? '');
     if (!$slug) {
         sendJson(['success' => false, 'message' => 'Slug inválido'], 400);
@@ -126,11 +91,26 @@ if ($method === 'DELETE') {
 
     $eventDir = $baseDir . DIRECTORY_SEPARATOR . $slug;
     if (!is_dir($eventDir)) {
-        sendJson(['success' => false, 'message' => 'El evento no existe'], 404);
+        sendJson(['success' => false, 'message' => 'Evento no encontrado'], 404);
     }
 
-    deleteDirectoryRecursive($eventDir);
-    sendJson(['success' => true, 'message' => 'Evento eliminado correctamente']);
+    $deleteRecursive = function (string $dir) use (&$deleteRecursive): void {
+        foreach (scandir($dir) as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+            $path = $dir . DIRECTORY_SEPARATOR . $item;
+            if (is_dir($path)) {
+                $deleteRecursive($path);
+            } else {
+                @unlink($path);
+            }
+        }
+        @rmdir($dir);
+    };
+
+    $deleteRecursive($eventDir);
+    sendJson(['success' => true]);
 }
 
-sendJson(['success' => false, 'message' => 'Método no soportado'], 405);
+sendJson(['success' => false, 'message' => 'Método no permitido'], 405);

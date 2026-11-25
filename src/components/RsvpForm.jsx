@@ -3,115 +3,121 @@ import { Send } from 'lucide-react';
 import './RsvpForm.css';
 
 export default function RsvpForm({ rsvp }) {
-  const [formData, setFormData] = useState({
-    name: '',
-    attendance: 'Sí, asistiré con gusto',
-    guests: '1',
-    message: '',
-  });
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  const [name, setName] = useState('');
+  const [attending, setAttending] = useState('Sí, asistiremos con gusto');
+  const [guests, setGuests] = useState('2');
+  const [notes, setNotes] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const text = `${rsvp.whatsappIntro}%0A%0A*Nombre:* ${formData.name}%0A*Asistencia:* ${formData.attendance}%0A*Número de pases:* ${formData.guests}%0A*Mensaje:* ${formData.message || '¡Muchas felicidades!'}`;
-    window.open(`https://wa.me/${rsvp.whatsappPhone}?text=${text}`, '_blank');
-    setSubmitted(true);
+
+    const phone = String(rsvp?.whatsappPhone || '').replace(/\D/g, '');
+    const isAttending = attending.startsWith('Sí');
+    const guestCount = Number(guests) || 1;
+    const guestLabel =
+      guestCount === 1 ? '1 persona' : `${guestCount} personas`;
+
+    const messageLines = [
+      '¡Hola! Confirmo mi asistencia al evento:',
+      '',
+      `• *Nombre:* ${name.trim()}`,
+      `• *Asistencia:* ${attending}`,
+      isAttending ? `• *Número de personas:* ${guestLabel}` : null,
+      notes.trim() ? `• *Mensaje / Restricciones:* ${notes.trim()}` : null,
+    ].filter(Boolean);
+
+    const encodedText = encodeURIComponent(messageLines.join('\n'));
+    const whatsappUrl = `https://wa.me/${phone}?text=${encodedText}`;
+
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };
 
-  return (
-    <section className="section-container">
-      <span className="section-subtitle">R.S.V.P.</span>
-      <h2 className="section-title">Confirma tu Asistencia</h2>
-      <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem' }}>
-        {rsvp.deadlineText}
-      </p>
+  const guestOptions = Array.from({ length: 10 }, (_, idx) => idx + 1);
 
-      {submitted ? (
-        <div className="rsvp-success">
-          <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.7rem', marginBottom: '0.5rem' }}>
-            ¡Gracias por confirmar, {formData.name}!
-          </h3>
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-            Se ha abierto WhatsApp para enviar tus datos directamente.
-          </p>
-          <button className="btn-outline" onClick={() => setSubmitted(false)}>
-            Enviar otra confirmación
-          </button>
-        </div>
-      ) : (
-        <form className="rsvp-form" onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="name">Nombre Completo *</label>
+  return (
+    <div id="confirmacion" className="rsvp-wrapper">
+      <section className="rsvp-section">
+        <span className="section-subtitle">Será un honor contar contigo</span>
+        <h2 className="section-title">Confirma tu Asistencia</h2>
+        <p className="rsvp-description">
+          Por favor confírmanos tu asistencia a través de nuestro formulario
+          directo a WhatsApp.
+        </p>
+
+        <form onSubmit={handleSubmit} className="rsvp-form">
+          <div className="rsvp-field">
+            <label htmlFor="rsvp-name" className="rsvp-label">
+              Nombre completo o Familia *
+            </label>
             <input
-              id="name"
-              name="name"
+              id="rsvp-name"
               type="text"
               required
-              className="form-control"
+              className="rsvp-input"
               placeholder="Ej. Familia Pérez López"
-              value={formData.name}
-              onChange={handleChange}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="attendance">¿Podrás acompañarnos?</label>
+          <div className="rsvp-field">
+            <label htmlFor="rsvp-attending" className="rsvp-label">
+              ¿Podrás acompañarnos?
+            </label>
             <select
-              id="attendance"
-              name="attendance"
-              className="form-control"
-              value={formData.attendance}
-              onChange={handleChange}
+              id="rsvp-attending"
+              className="rsvp-select"
+              value={attending}
+              onChange={(e) => setAttending(e.target.value)}
             >
-              <option value="Sí, asistiré con gusto">Sí, asistiré con gusto</option>
-              <option value="Lo siento, no podré asistir">Lo siento, no podré asistir</option>
+              <option value="Sí, asistiremos con gusto">
+                Sí, asistiremos con gusto
+              </option>
+              <option value="Lamentablemente no podremos asistir">
+                Lamentablemente no podremos asistir
+              </option>
             </select>
           </div>
 
-          {formData.attendance.startsWith('Sí') && (
-            <div className="form-group">
-              <label htmlFor="guests">Número de personas</label>
+          {attending.startsWith('Sí') && (
+            <div className="rsvp-field">
+              <label htmlFor="rsvp-guests" className="rsvp-label">
+                Número de personas
+              </label>
               <select
-                id="guests"
-                name="guests"
-                className="form-control"
-                value={formData.guests}
-                onChange={handleChange}
+                id="rsvp-guests"
+                className="rsvp-select"
+                value={guests}
+                onChange={(e) => setGuests(e.target.value)}
               >
-                <option value="1">1 Persona</option>
-                <option value="2">2 Personas</option>
-                <option value="3">3 Personas</option>
-                <option value="4">4 Personas</option>
+                {guestOptions.map((count) => (
+                  <option key={count} value={String(count)}>
+                    {count === 1 ? '1 persona' : `${count} personas`}
+                  </option>
+                ))}
               </select>
             </div>
           )}
 
-          <div className="form-group">
-            <label htmlFor="message">Dedicatoria o alergias alimentarias (opcional)</label>
+          <div className="rsvp-field">
+            <label htmlFor="rsvp-notes" className="rsvp-label">
+              Mensaje para los anfitriones o alergias (opcional)
+            </label>
             <textarea
-              id="message"
-              name="message"
+              id="rsvp-notes"
               rows="3"
-              className="form-control"
-              placeholder="Escribe tus buenos deseos..."
-              value={formData.message}
-              onChange={handleChange}
+              className="rsvp-textarea"
+              placeholder="Escribe aquí tus buenos deseos..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
             />
           </div>
 
-          <div className="rsvp-submit-wrapper">
-            <button type="submit" className="btn-solid">
-              <Send size={15} />
-              Confirmar por WhatsApp
-            </button>
-          </div>
+          <button type="submit" className="btn-solid rsvp-submit">
+            <Send size={15} /> Confirmar por WhatsApp
+          </button>
         </form>
-      )}
-    </section>
+      </section>
+    </div>
   );
 }

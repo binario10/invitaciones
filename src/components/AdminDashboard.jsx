@@ -19,6 +19,8 @@ import {
   Link2,
   Image as ImageIcon,
   Layers,
+  Globe,
+  DollarSign,
 } from 'lucide-react';
 import { eventTemplates } from '../data/eventTemplates';
 import { colorPalettes } from '../data/colorPalettes';
@@ -106,6 +108,11 @@ export default function AdminDashboard() {
   const [managingAlbumSlug, setManagingAlbumSlug] = useState('');
   const [albumMediaItems, setAlbumMediaItems] = useState([]);
   const [loadingAlbumMedia, setLoadingAlbumMedia] = useState(false);
+
+  // Estado del editor de la Landing Page Comercial (ruta "/")
+  const [editingLanding, setEditingLanding] = useState(false);
+  const [landingForm, setLandingForm] = useState(null);
+  const [savingLanding, setSavingLanding] = useState(false);
 
   const logout = useCallback(() => {
     sessionStorage.removeItem(TOKEN_KEY);
@@ -197,6 +204,64 @@ export default function AdminDashboard() {
     }
     ev.sectionOrder = buildNormalizedOrder(ev.sectionOrder, ev.customHeroes);
     return ev;
+  };
+
+  const openLandingEditor = async () => {
+    try {
+      const res = await fetch(`${API_URL}/landing_config.php`);
+      const data = await res.json();
+      if (data.success && data.landing) {
+        setLandingForm(data.landing);
+        setEditingLanding(true);
+        setEditingEvent(null);
+        setManagingAlbumSlug('');
+      }
+    } catch {
+      alert('No se pudo cargar la configuración de la página principal.');
+    }
+  };
+
+  const handleSaveLanding = async (e) => {
+    e.preventDefault();
+    if (!landingForm) return;
+    setSavingLanding(true);
+    try {
+      const res = await fetch(`${API_URL}/landing_config.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(landingForm),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEditingLanding(false);
+        alert('Página principal y precios guardados correctamente.');
+      } else {
+        alert(data.message || 'No se pudo guardar');
+      }
+    } catch {
+      alert('Error de conexión al guardar la página principal.');
+    } finally {
+      setSavingLanding(false);
+    }
+  };
+
+  const updateLandingField = (path, value) => {
+    setLandingForm((prev) => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      const keys = path.split('.');
+      let cur = copy;
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (!cur[keys[i]] || typeof cur[keys[i]] !== 'object') {
+          cur[keys[i]] = {};
+        }
+        cur = cur[keys[i]];
+      }
+      cur[keys[keys.length - 1]] = value;
+      return copy;
+    });
   };
 
   const startCreateFromTemplate = (templateKey) => {
@@ -857,10 +922,28 @@ export default function AdminDashboard() {
         <div className="admin-brand">
           <span>Gestor de Invitaciones</span>
         </div>
-        <button type="button" className="admin-mini-btn" onClick={logout}>
-          <LogOut size={15} />
-          Cerrar sesión
-        </button>
+        <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="admin-mini-btn"
+            onClick={openLandingEditor}
+          >
+            <Globe size={15} />
+            Configurar Página Principal & Precios
+          </button>
+          <a
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="admin-mini-btn"
+          >
+            <ExternalLink size={15} /> Ver Landing
+          </a>
+          <button type="button" className="admin-mini-btn" onClick={logout}>
+            <LogOut size={15} />
+            Cerrar sesión
+          </button>
+        </div>
       </nav>
 
       <UploadProgressModal
@@ -871,7 +954,389 @@ export default function AdminDashboard() {
       />
 
       <div className="admin-container">
-        {managingAlbumSlug ? (
+        {editingLanding && landingForm ? (
+          <form onSubmit={handleSaveLanding}>
+            <div className="admin-toolbar">
+              <button
+                type="button"
+                className="admin-mini-btn"
+                onClick={() => setEditingLanding(false)}
+              >
+                <ArrowLeft size={15} /> Volver al listado
+              </button>
+              <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.9rem' }}>
+                Configurar Página Principal de Ventas (/)
+              </h2>
+            </div>
+
+            {/* BLOQUE 1: PRECIOS Y OFERTA */}
+            <div className="editor-card">
+              <h3 className="editor-section-title">
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <DollarSign size={20} /> 1. Precios, Oferta y WhatsApp de Ventas
+                </span>
+                <label className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={landingForm.pricing?.showBasePrice !== false}
+                    onChange={(e) =>
+                      updateLandingField(
+                        'pricing.showBasePrice',
+                        e.target.checked
+                      )
+                    }
+                  />
+                  Mostrar precio base tachado (Anclaje de oferta)
+                </label>
+              </h3>
+
+              <div className="editor-grid-4">
+                <div className="field-box">
+                  <label>Precio Base Regular (Tachado)</label>
+                  <input
+                    type="number"
+                    required
+                    className="field-input"
+                    value={landingForm.pricing?.basePrice ?? 1000}
+                    onChange={(e) =>
+                      updateLandingField(
+                        'pricing.basePrice',
+                        Number(e.target.value)
+                      )
+                    }
+                  />
+                </div>
+                <div className="field-box">
+                  <label>Precio Oferta Actual *</label>
+                  <input
+                    type="number"
+                    required
+                    className="field-input"
+                    value={landingForm.pricing?.offerPrice ?? 500}
+                    onChange={(e) =>
+                      updateLandingField(
+                        'pricing.offerPrice',
+                        Number(e.target.value)
+                      )
+                    }
+                  />
+                </div>
+                <div className="field-box">
+                  <label>Moneda</label>
+                  <input
+                    type="text"
+                    className="field-input"
+                    value={landingForm.pricing?.currency || 'MXN'}
+                    onChange={(e) =>
+                      updateLandingField('pricing.currency', e.target.value)
+                    }
+                  />
+                </div>
+                <div className="field-box">
+                  <label>WhatsApp de Ventas (521 + 10 dígitos)</label>
+                  <input
+                    type="text"
+                    required
+                    className="field-input"
+                    value={landingForm.whatsappPhone || ''}
+                    onChange={(e) =>
+                      updateLandingField('whatsappPhone', e.target.value)
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="editor-grid-2">
+                <div className="field-box">
+                  <label>Cinta de Promoción / Descuento</label>
+                  <input
+                    type="text"
+                    className="field-input"
+                    value={landingForm.pricing?.offerBadge || ''}
+                    onChange={(e) =>
+                      updateLandingField('pricing.offerBadge', e.target.value)
+                    }
+                  />
+                </div>
+                <div className="field-box">
+                  <label>Nombre del Paquete</label>
+                  <input
+                    type="text"
+                    className="field-input"
+                    value={landingForm.pricing?.packageName || ''}
+                    onChange={(e) =>
+                      updateLandingField('pricing.packageName', e.target.value)
+                    }
+                  />
+                </div>
+                <div className="field-box">
+                  <label>Texto Botón de Compra</label>
+                  <input
+                    type="text"
+                    className="field-input"
+                    value={landingForm.pricing?.ctaText || ''}
+                    onChange={(e) =>
+                      updateLandingField('pricing.ctaText', e.target.value)
+                    }
+                  />
+                </div>
+                <div className="field-box">
+                  <label>Frase de Urgencia debajo del Precio</label>
+                  <input
+                    type="text"
+                    className="field-input"
+                    value={landingForm.pricing?.urgencyNote || ''}
+                    onChange={(e) =>
+                      updateLandingField('pricing.urgencyNote', e.target.value)
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="field-box">
+                <label>Mensaje Prellenado al abrir WhatsApp</label>
+                <input
+                  type="text"
+                  className="field-input"
+                  value={landingForm.whatsappMessage || ''}
+                  onChange={(e) =>
+                    updateLandingField('whatsappMessage', e.target.value)
+                  }
+                />
+              </div>
+
+              <div className="field-box" style={{ marginBottom: 0 }}>
+                <label>Lista de Beneficios Incluidos (uno por línea)</label>
+                <textarea
+                  rows="6"
+                  className="field-input"
+                  value={(landingForm.pricing?.includedItems || []).join('\n')}
+                  onChange={(e) =>
+                    updateLandingField(
+                      'pricing.includedItems',
+                      e.target.value.split('\n').filter((line) => line.trim())
+                    )
+                  }
+                />
+              </div>
+            </div>
+
+            {/* BLOQUE 2: PORTADA COMERCIAL */}
+            <div className="editor-card">
+              <h3 className="editor-section-title">
+                2. Portada Comercial Principal (Hero)
+              </h3>
+              <div className="editor-grid-2">
+                <div className="field-box">
+                  <label>Nombre de Marca / Estudio</label>
+                  <input
+                    type="text"
+                    className="field-input"
+                    value={landingForm.brandName || ''}
+                    onChange={(e) =>
+                      updateLandingField('brandName', e.target.value)
+                    }
+                  />
+                </div>
+                <div className="field-box">
+                  <label>Etiqueta Superior (Eyebrow)</label>
+                  <input
+                    type="text"
+                    className="field-input"
+                    value={landingForm.hero?.eyebrow || ''}
+                    onChange={(e) =>
+                      updateLandingField('hero.eyebrow', e.target.value)
+                    }
+                  />
+                </div>
+                <div className="field-box">
+                  <label>Titular Principal Persuasivo</label>
+                  <input
+                    type="text"
+                    className="field-input"
+                    value={landingForm.hero?.title || ''}
+                    onChange={(e) =>
+                      updateLandingField('hero.title', e.target.value)
+                    }
+                  />
+                </div>
+                <div className="field-box">
+                  <label>Enlace del Botón "Ver Demo Interactivo"</label>
+                  <input
+                    type="text"
+                    className="field-input"
+                    placeholder="/karina-brayan"
+                    value={landingForm.hero?.demoUrl || ''}
+                    onChange={(e) =>
+                      updateLandingField('hero.demoUrl', e.target.value)
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="field-box">
+                <label>Subtítulo Persuasivo</label>
+                <textarea
+                  rows="2"
+                  className="field-input"
+                  value={landingForm.hero?.subtitle || ''}
+                  onChange={(e) =>
+                    updateLandingField('hero.subtitle', e.target.value)
+                  }
+                />
+              </div>
+
+              <div className="field-box" style={{ marginBottom: 0 }}>
+                <label>Imagen de Fondo de la Portada Comercial (URL)</label>
+                <input
+                  type="text"
+                  className="field-input"
+                  value={landingForm.hero?.heroImage || ''}
+                  onChange={(e) =>
+                    updateLandingField('hero.heroImage', e.target.value)
+                  }
+                />
+              </div>
+            </div>
+
+            {/* BLOQUE 3: TARJETAS DE DEMOS EN VIVO */}
+            <div className="editor-card">
+              <h3 className="editor-section-title">
+                <span>3. Tarjetas de Invitaciones Demo en Vivo</span>
+                <button
+                  type="button"
+                  className="admin-mini-btn"
+                  onClick={() =>
+                    updateLandingField('demosSection.items', [
+                      ...(landingForm.demosSection?.items || []),
+                      {
+                        id: `demo_${Date.now()}`,
+                        category: 'Evento Especial',
+                        title: 'Nuevo Demo',
+                        desc: 'Descripción persuasiva del diseño.',
+                        image:
+                          'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=80',
+                        url: '/karina-brayan',
+                      },
+                    ])
+                  }
+                >
+                  <Plus size={14} /> Agregar Demo
+                </button>
+              </h3>
+
+              {(landingForm.demosSection?.items || []).map((demo, idx) => (
+                <div key={demo.id || idx} className="repeat-subcard">
+                  <div className="subcard-header">
+                    <strong>Demo #{idx + 1}: {demo.title}</strong>
+                    <button
+                      type="button"
+                      className="admin-mini-btn danger"
+                      style={{ padding: '0.3rem 0.5rem' }}
+                      onClick={() =>
+                        updateLandingField(
+                          'demosSection.items',
+                          landingForm.demosSection.items.filter(
+                            (_, i) => i !== idx
+                          )
+                        )
+                      }
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+
+                  <div className="editor-grid-4">
+                    <div className="field-box">
+                      <label>Categoría</label>
+                      <input
+                        type="text"
+                        className="field-input"
+                        value={demo.category || ''}
+                        onChange={(e) => {
+                          const next = [...landingForm.demosSection.items];
+                          next[idx].category = e.target.value;
+                          updateLandingField('demosSection.items', next);
+                        }}
+                      />
+                    </div>
+                    <div className="field-box">
+                      <label>Título</label>
+                      <input
+                        type="text"
+                        className="field-input"
+                        value={demo.title || ''}
+                        onChange={(e) => {
+                          const next = [...landingForm.demosSection.items];
+                          next[idx].title = e.target.value;
+                          updateLandingField('demosSection.items', next);
+                        }}
+                      />
+                    </div>
+                    <div className="field-box">
+                      <label>Ruta / Enlace Demo</label>
+                      <input
+                        type="text"
+                        className="field-input"
+                        placeholder="/karina-brayan"
+                        value={demo.url || ''}
+                        onChange={(e) => {
+                          const next = [...landingForm.demosSection.items];
+                          next[idx].url = e.target.value;
+                          updateLandingField('demosSection.items', next);
+                        }}
+                      />
+                    </div>
+                    <div className="field-box">
+                      <label>Imagen Portada (URL)</label>
+                      <input
+                        type="text"
+                        className="field-input"
+                        value={demo.image || ''}
+                        onChange={(e) => {
+                          const next = [...landingForm.demosSection.items];
+                          next[idx].image = e.target.value;
+                          updateLandingField('demosSection.items', next);
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="field-box" style={{ marginBottom: 0 }}>
+                    <label>Descripción corta</label>
+                    <input
+                      type="text"
+                      className="field-input"
+                      value={demo.desc || ''}
+                      onChange={(e) => {
+                        const next = [...landingForm.demosSection.items];
+                        next[idx].desc = e.target.value;
+                        updateLandingField('demosSection.items', next);
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="editor-sticky-bar">
+              <button
+                type="button"
+                className="btn-outline"
+                onClick={() => setEditingLanding(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="btn-solid"
+                disabled={savingLanding}
+              >
+                <Save size={16} />
+                {savingLanding ? 'Guardando...' : 'Guardar Página Principal'}
+              </button>
+            </div>
+          </form>
+        ) : managingAlbumSlug ? (
           <div className="editor-card">
             <div className="admin-toolbar">
               <button
@@ -1316,6 +1781,22 @@ export default function AdminDashboard() {
                       updateField('hero.dateISO', `${e.target.value}:00`)
                     }
                   />
+                  <label
+                    className="checkbox-row"
+                    style={{ marginTop: '0.55rem', fontSize: '0.8rem' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={editingEvent.hero.showCalendarButton !== false}
+                      onChange={(e) =>
+                        updateField(
+                          'hero.showCalendarButton',
+                          e.target.checked
+                        )
+                      }
+                    />
+                    Mostrar botón &quot;Agendar en Calendario&quot; debajo del contador
+                  </label>
                 </div>
                 <div className="field-box">
                   <label>Fecha Visible en Portada</label>

@@ -4,7 +4,6 @@ import {
   Routes,
   Route,
   useParams,
-  Navigate,
   Link,
 } from 'react-router-dom';
 import WelcomeOverlay from './components/WelcomeOverlay';
@@ -21,6 +20,7 @@ import RsvpForm from './components/RsvpForm';
 import Footer from './components/Footer';
 import CustomHeroSection from './components/CustomHeroSection';
 import SectionBgWrapper from './components/SectionBgWrapper';
+import LandingPage from './components/LandingPage';
 import AdminDashboard from './components/AdminDashboard';
 import './styles/variables.css';
 
@@ -227,7 +227,7 @@ function InvitationView({ eventConfig, slug }) {
           key={key}
           sectionBg={sectionBackgrounds.countdown}
         >
-          <Countdown targetDate={hero.dateISO} />
+          <Countdown targetDate={hero.dateISO} eventConfig={eventConfig} />
         </SectionBgWrapper>
       );
     }
@@ -427,7 +427,7 @@ export default function App() {
     <BrowserRouter>
       <RouteErrorBoundary>
         <Routes>
-          <Route path="/" element={<Navigate to="/karina-brayan" replace />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route
             path="/:slug"

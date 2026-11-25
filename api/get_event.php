@@ -1,26 +1,30 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/demo_seeds.php';
 handleCors('GET, OPTIONS');
-ensureDemoEventExists();
 
 $slug = sanitizeSlug($_GET['slug'] ?? '');
 if (!$slug) {
-    sendJson(['success' => false, 'message' => 'Identificador de invitación inválido'], 400);
+    sendJson(['success' => false, 'message' => 'Slug de evento inválido'], 400);
 }
+
+ensureApatzinganDemoSeeded($slug);
 
 $baseDir = getEventosBaseDir();
 $configFile = $baseDir . DIRECTORY_SEPARATOR . $slug . DIRECTORY_SEPARATOR . 'config.json';
 
-if (!file_exists($configFile)) {
+if (!is_file($configFile)) {
     sendJson(['success' => false, 'message' => 'Invitación no encontrada'], 404);
 }
 
-$config = json_decode(file_get_contents($configFile), true);
-if (!is_array($config)) {
-    sendJson(['success' => false, 'message' => 'Error al leer la configuración de la invitación'], 500);
+$raw = file_get_contents($configFile);
+$data = json_decode((string)$raw, true);
+
+if (!is_array($data)) {
+    sendJson(['success' => false, 'message' => 'Error al leer configuración del evento'], 500);
 }
 
 sendJson([
     'success' => true,
-    'event'   => $config,
+    'event'   => $data,
 ]);
