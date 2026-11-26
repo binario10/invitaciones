@@ -329,6 +329,8 @@ function InvitationView({ eventConfig, slug }) {
       <WelcomeOverlay
         isOpen={showOverlay}
         welcome={welcome}
+        heroImage={hero?.heroImage}
+        dateDisplay={hero?.dateDisplay}
         onEnter={handleEnter}
       />
 

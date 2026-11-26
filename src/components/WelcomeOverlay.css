@@ -1,17 +1,18 @@
+@import url('https://fonts.googleapis.com/css2?family=Great+Vibes&family=Cinzel:wght@500;600&display=swap');
+
 .welcome-overlay {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background-color: var(--bg-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  transition: opacity 0.85s ease 0.45s, visibility 0.85s ease 0.45s;
-}
-
-.welcome-overlay.opening {
-  pointer-events: none;
+  padding: 1.25rem;
+  background: rgba(20, 17, 15, 0.72);
+  backdrop-filter: blur(8px);
+  transition: opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0.85s ease;
+  overflow-y: auto;
 }
 
 .welcome-overlay.hidden {
@@ -20,304 +21,881 @@
   pointer-events: none;
 }
 
-/* Contenedor principal del sobre: 100% responsivo */
+.welcome-backdrop-photo {
+  position: fixed;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.welcome-overlay.backdrop-photo-bw {
+  background: rgba(245, 242, 237, 0.25);
+  backdrop-filter: none;
+}
+
+.welcome-overlay.backdrop-photo-bw .welcome-backdrop-photo {
+  filter: grayscale(100%) contrast(1.04) brightness(0.95);
+}
+
+.welcome-overlay.backdrop-photo-clear {
+  background: rgba(250, 247, 242, 0.18);
+  backdrop-filter: none;
+}
+
+.welcome-overlay.backdrop-photo-clear .welcome-backdrop-photo {
+  filter: brightness(0.98);
+}
+
+.welcome-overlay.backdrop-clean-studio {
+  background: radial-gradient(circle at center, #ffffff 0%, #f3efe8 100%);
+  backdrop-filter: none;
+}
+
+.welcome-overlay.backdrop-dark-blur {
+  background: rgba(20, 17, 15, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+/* =========================================================
+   ESCENARIO PRINCIPAL DEL SOBRE (CON PROPORCIÓN FIJA SIN DEFORMACIÓN)
+   ========================================================= */
 .envelope-stage {
   position: relative;
-  width: 100%;
-  height: 100%;
-  max-width: 920px;
-  max-height: 660px;
-  background-color: var(--bg-primary);
-  box-shadow: 0 25px 65px rgba(25, 22, 20, 0.22);
+  z-index: 2;
+  width: min(92vw, 540px);
+  aspect-ratio: 4 / 3.05;
+  height: auto;
+  max-height: 86vh;
+  background-color: var(--env-paper-bg, #f6f1e9);
+  color: var(--env-text-color, #2c2825);
+  border: 1px solid var(--env-border-color, #d4af37);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.34),
+    0 8px 22px rgba(0, 0, 0, 0.16),
+    inset 0 0 36px rgba(0, 0, 0, 0.04);
   overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: space-between;
+  padding: clamp(1.25rem, 4vw, 2.35rem) clamp(1rem, 3.5vw, 1.75rem);
+  text-align: center;
+  transition: transform 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.85s ease, filter 0.85s ease;
+}
+
+/* Tamaños configurables manteniendo aspecto uniforme */
+.envelope-stage.size-compact {
+  width: min(92vw, 440px);
+}
+
+.envelope-stage.size-standard {
+  width: min(92vw, 540px);
+}
+
+.envelope-stage.size-large {
+  width: min(94vw, 660px);
+}
+
+.envelope-stage.size-fullscreen {
+  width: 100vw;
+  max-width: 100vw;
+  height: 100vh;
+  max-height: 100vh;
+  aspect-ratio: auto;
+  border: none;
+  padding: 3rem 1.75rem;
+}
+
+.welcome-overlay.size-fullscreen-overlay {
+  padding: 0;
+}
+
+.envelope-stage.is-translucent {
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+}
+
+.envelope-custom-bg-image {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: var(--env-image-opacity, 0.35);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* =========================================================
+   MODO IMAGEN DE SOBRE COMPLETA TAL CUAL (PNG / JPG / WEBP)
+   ========================================================= */
+.envelope-stage.geom-custom-image {
+  width: min(92vw, 520px);
+  aspect-ratio: auto;
+  height: auto;
+  max-height: 88vh;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  overflow: visible;
   justify-content: center;
-  perspective: 1400px;
 }
 
-@media (max-width: 920px) {
-  .envelope-stage {
-    max-width: 100%;
-    max-height: 100%;
-    box-shadow: none;
-  }
+.envelope-stage.geom-custom-image.size-compact {
+  width: min(92vw, 420px);
 }
 
-/* Textura sutil de papel fino en toda la superficie */
+.envelope-stage.geom-custom-image.size-large {
+  width: min(94vw, 640px);
+}
+
+.envelope-stage.geom-custom-image.size-fullscreen {
+  width: 100vw;
+  height: 100vh;
+  max-height: 100vh;
+}
+
+.custom-image-envelope-wrapper {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.custom-image-envelope-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 84vh;
+  object-fit: contain;
+  filter: drop-shadow(0 24px 44px rgba(0, 0, 0, 0.35));
+  user-select: none;
+}
+
+.custom-image-overlay-controls {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  width: 88%;
+  pointer-events: none;
+}
+
+.custom-image-overlay-controls .gold-wax-seal-btn,
+.custom-image-overlay-controls .custom-image-text-pill {
+  pointer-events: auto;
+}
+
+.custom-image-text-pill {
+  background: rgba(255, 253, 249, 0.9);
+  backdrop-filter: blur(6px);
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+}
+
+/* Patrones y texturas CSS por estilo */
 .envelope-paper-texture {
   position: absolute;
   inset: 0;
-  background-image:
-    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.45) 0%, transparent 55%),
-    radial-gradient(circle at 80% 80%, rgba(44, 40, 37, 0.04) 0%, transparent 60%);
   pointer-events: none;
   z-index: 1;
 }
 
-/* Pliegues laterales izquierdo y derecho */
-.envelope-flap-left {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
-  clip-path: polygon(0 0, 52% 50%, 0 100%);
-  filter: drop-shadow(4px 0 12px rgba(44, 40, 37, 0.09));
-  z-index: 2;
+.envelope-paper-texture.pattern-linen {
+  background-image: repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.025) 0px,
+      rgba(0, 0, 0, 0.025) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.025) 0px,
+      rgba(0, 0, 0, 0.025) 1px,
+      transparent 1px,
+      transparent 4px
+    );
 }
 
-.envelope-flap-right {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(225deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
-  clip-path: polygon(100% 0, 48% 50%, 100% 100%);
-  filter: drop-shadow(-4px 0 12px rgba(44, 40, 37, 0.09));
-  z-index: 2;
+.envelope-paper-texture.pattern-silk {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.16) 0%,
+    rgba(255, 255, 255, 0) 48%,
+    rgba(255, 255, 255, 0.1) 100%
+  );
 }
 
-/* Pliegue inferior del sobre */
-.envelope-flap-bottom {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, var(--bg-secondary) 15%, var(--bg-primary) 100%);
-  clip-path: polygon(0 100%, 50% 45%, 100% 100%);
-  filter: drop-shadow(0 -6px 16px rgba(44, 40, 37, 0.12));
-  z-index: 3;
+.envelope-paper-texture.pattern-kraft {
+  background-image: radial-gradient(rgba(74, 48, 22, 0.12) 1px, transparent 0),
+    radial-gradient(rgba(255, 245, 230, 0.14) 1px, transparent 0);
+  background-size: 14px 14px;
+  background-position: 0 0, 7px 7px;
 }
 
-/* Solapa triangular superior que se abre al dar clic */
+.envelope-paper-texture.pattern-botanical {
+  background-image: radial-gradient(
+      circle at 20% 25%,
+      rgba(102, 133, 114, 0.09) 0%,
+      transparent 38%
+    ),
+    radial-gradient(
+      circle at 80% 75%,
+      rgba(102, 133, 114, 0.09) 0%,
+      transparent 42%
+    );
+}
+
+.envelope-paper-texture.pattern-cotton {
+  box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.07),
+    inset 0 2px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* Pliegues geométricos del sobre estándar */
+.envelope-flap-left,
+.envelope-flap-right,
+.envelope-flap-bottom,
 .envelope-flap-top {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    to bottom,
-    var(--bg-secondary) 0%,
-    var(--bg-primary) 88%
-  );
+  pointer-events: none;
+}
+
+.envelope-flap-left {
+  background: var(--env-flap-side-bg, #f1e9dc);
+  clip-path: polygon(0 0, 52% 52%, 0 100%);
+  opacity: 0.72;
+  z-index: 2;
+  transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.envelope-flap-right {
+  background: var(--env-flap-side-bg, #f1e9dc);
+  clip-path: polygon(100% 0, 48% 52%, 100% 100%);
+  opacity: 0.72;
+  z-index: 2;
+  transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.envelope-flap-bottom {
+  background: var(--env-flap-bg, #ede4d6);
+  clip-path: polygon(0 100%, 50% 48%, 100% 100%);
+  filter: drop-shadow(0 -6px 14px rgba(0, 0, 0, 0.12));
+  z-index: 3;
+  transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.envelope-flap-top {
+  background: var(--env-flap-bg, #ede4d6);
   clip-path: polygon(0 0, 100% 0, 50% 54%);
-  filter: drop-shadow(0 10px 20px rgba(44, 40, 37, 0.16));
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.16));
   transform-origin: top center;
-  transition: transform 0.75s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 4;
+  transition: transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.welcome-overlay.opening .envelope-flap-top,
-.welcome-overlay.hidden .envelope-flap-top {
-  transform: rotateX(180deg);
+/* =========================================================
+   GEOMETRÍA FOTORREALISTA 1: SOBRE ABIERTO CON FORRO INTERIOR
+   (Proporción fija 4 / 3.95 para que nunca se estire)
+   ========================================================= */
+.envelope-stage.geom-open-liner {
+  width: min(90vw, 460px);
+  aspect-ratio: 4 / 3.95;
+  height: auto;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  justify-content: flex-end;
+  overflow: visible;
 }
 
-/* Líneas finas doradas decorativas en el borde de la solapa */
-.envelope-gold-trim {
+.envelope-stage.geom-open-liner.size-compact {
+  width: min(90vw, 390px);
+}
+
+.envelope-stage.geom-open-liner.size-large {
+  width: min(92vw, 540px);
+}
+
+.open-liner-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  filter: drop-shadow(0 24px 44px rgba(0, 0, 0, 0.36));
+}
+
+.open-liner-top-outer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 46%;
+  background: var(--env-paper-bg, #f4f0e8);
+  clip-path: polygon(50% 0%, 100% 88%, 100% 100%, 0% 100%, 0% 88%);
+  border-radius: 16px 16px 0 0;
+  z-index: 1;
+}
+
+.open-liner-top-inner {
+  position: absolute;
+  top: 3.5%;
+  left: 3.5%;
+  right: 3.5%;
+  height: 42.5%;
+  background: linear-gradient(
+      180deg,
+      var(--env-liner-bg, #9b0c14) 0%,
+      rgba(0, 0, 0, 0.22) 100%
+    ),
+    var(--env-liner-bg, #9b0c14);
+  clip-path: polygon(50% 0%, 100% 88%, 100% 100%, 0% 100%, 0% 88%);
+  z-index: 2;
+}
+
+.open-liner-body {
+  position: relative;
+  width: 100%;
+  height: 59%;
+  background: var(--env-paper-bg, #f4f0e8);
+  z-index: 3;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: clamp(0.75rem, 2.2vw, 1.1rem) 1.25rem
+    clamp(0.85rem, 2.5vw, 1.25rem);
+}
+
+.open-liner-body .wax-seal-center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.open-liner-pocket-v {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56%;
+  background: linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.18) 0%,
+      transparent 35%
+    ),
+    var(--env-liner-bg, #9b0c14);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  box-shadow: inset 0 8px 16px rgba(0, 0, 0, 0.28);
+  z-index: 1;
+}
+
+.open-liner-bottom-fold {
   position: absolute;
   inset: 0;
-  clip-path: polygon(0 0, 100% 0, 50% 54%);
+  background: var(--env-flap-bg, #ebe4d8);
+  clip-path: polygon(0 100%, 50% 42%, 100% 100%);
+  filter: drop-shadow(0 -4px 10px rgba(0, 0, 0, 0.12));
+  z-index: 2;
+}
+
+.open-liner-ornament {
+  position: relative;
+  z-index: 4;
+  color: var(--env-border-color, #d4af37);
+  font-size: clamp(0.85rem, 2vw, 1.05rem);
+  letter-spacing: 0.35em;
+  opacity: 0.9;
+}
+
+.open-liner-message-box {
+  position: relative;
+  z-index: 5;
+  max-width: 390px;
+  margin-top: auto;
+}
+
+/* =========================================================
+   GEOMETRÍA FOTORREALISTA 2: BOLSILLO CON TARJETA DE ENCAJE
+   (Proporción fija 4 / 4.35 para que la tarjeta nunca se corte)
+   ========================================================= */
+.envelope-stage.geom-lace-pocket {
+  width: min(90vw, 450px);
+  aspect-ratio: 4 / 4.35;
+  height: auto;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  justify-content: flex-end;
+  overflow: visible;
+}
+
+.envelope-stage.geom-lace-pocket.size-compact {
+  width: min(90vw, 385px);
+}
+
+.envelope-stage.geom-lace-pocket.size-large {
+  width: min(92vw, 520px);
+}
+
+.lace-pocket-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  filter: drop-shadow(0 22px 42px rgba(0, 0, 0, 0.25));
+}
+
+.lace-insert-card {
+  position: absolute;
+  top: 0;
+  left: 6%;
+  right: 6%;
+  height: 70%;
+  background-color: var(--env-liner-bg, #f4efe6);
+  color: var(--env-text-color, #3a2426);
+  border-radius: 34px 34px 12px 12px;
+  border: 5px double var(--env-border-color, #d6cbb8);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12),
+    inset 0 0 0 8px rgba(255, 255, 255, 0.45);
+  padding: clamp(1.1rem, 3.2vw, 1.75rem) 1.25rem 3.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 2;
+  transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lace-pocket-front {
+  position: relative;
+  width: 100%;
+  height: 52%;
+  background: var(--env-paper-bg, #730a13);
+  border-radius: 0 0 10px 10px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: clamp(0.75rem, 2.2vw, 1.15rem);
+  overflow: visible;
+}
+
+.lace-pocket-front .wax-seal-center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.lace-pocket-left-wing {
+  position: absolute;
+  inset: 0;
   background: linear-gradient(
-    to bottom,
-    transparent 96%,
-    rgba(197, 160, 89, 0.45) 100%
-  );
+      135deg,
+      rgba(255, 255, 255, 0.08) 0%,
+      rgba(0, 0, 0, 0.22) 100%
+    ),
+    var(--env-paper-bg, #730a13);
+  clip-path: polygon(0 0, 53% 56%, 0 100%);
+  z-index: 1;
+}
+
+.lace-pocket-right-wing {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+      225deg,
+      rgba(255, 255, 255, 0.06) 0%,
+      rgba(0, 0, 0, 0.26) 100%
+    ),
+    var(--env-paper-bg, #730a13);
+  clip-path: polygon(100% 0, 47% 56%, 100% 100%);
+  z-index: 1;
+}
+
+.lace-pocket-bottom-wing {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.08) 0%,
+      rgba(0, 0, 0, 0.28) 100%
+    ),
+    var(--env-flap-bg, #5e070e);
+  clip-path: polygon(0 100%, 50% 44%, 100% 100%);
+  filter: drop-shadow(0 -6px 14px rgba(0, 0, 0, 0.35));
+  z-index: 2;
+}
+
+.lace-pocket-footer-title {
+  position: relative;
+  z-index: 5;
+  font-family: var(--font-serif);
+  font-size: clamp(1.3rem, 3.5vw, 1.7rem);
+  letter-spacing: 0.05em;
+  color: var(--env-liner-bg, #f4efe6);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  margin-top: 0.45rem;
+}
+
+.envelope-stage.geom-pocket .envelope-flap-bottom {
+  clip-path: polygon(0 46%, 100% 46%, 100% 100%, 0 100%);
+  border-top: 1px solid var(--env-border-color, #c4b8a5);
+}
+
+.envelope-stage.geom-pocket .envelope-flap-top {
+  clip-path: polygon(0 0, 100% 0, 100% 34%, 50% 48%, 0 34%);
+}
+
+.envelope-gold-trim {
+  position: absolute;
+  inset: 12px;
+  border: 1px solid var(--env-border-color, #d4af37);
+  opacity: 0.55;
   pointer-events: none;
   z-index: 5;
-  transition: opacity 0.4s ease;
 }
 
-.welcome-overlay.opening .envelope-gold-trim {
-  opacity: 0;
+.envelope-stage.style-ivory-linen .envelope-gold-trim,
+.envelope-stage.style-baroque-frame .envelope-gold-trim {
+  outline: 1px solid var(--env-border-color, #9c7844);
+  outline-offset: -5px;
 }
 
-/* Mensaje superior elegante sobre la solapa */
-.envelope-header-text {
+.envelope-baroque-corners::before,
+.envelope-baroque-corners::after {
+  content: '✦';
   position: absolute;
-  top: clamp(2rem, 9vh, 4.5rem);
-  left: 50%;
-  transform: translateX(-50%);
-  width: 86%;
-  max-width: 440px;
-  text-align: center;
+  font-size: 1.15rem;
+  color: var(--env-border-color, #9c7844);
   z-index: 6;
-  transition: opacity 0.45s ease, transform 0.45s ease;
+  pointer-events: none;
 }
 
-.welcome-overlay.opening .envelope-header-text {
-  opacity: 0;
-  transform: translate(-50%, -14px);
+.envelope-baroque-corners::before {
+  top: 16px;
+  left: 20px;
+}
+
+.envelope-baroque-corners::after {
+  bottom: 16px;
+  right: 20px;
+}
+
+.envelope-header-text {
+  position: relative;
+  z-index: 6;
+  max-width: 420px;
+  padding-top: 0.25rem;
 }
 
 .envelope-eyebrow {
-  display: block;
+  display: inline-block;
   font-family: var(--font-sans);
-  font-size: 0.68rem;
-  font-weight: 500;
-  letter-spacing: 0.28em;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.26em;
   text-transform: uppercase;
-  color: var(--accent-primary);
+  color: var(--env-eyebrow-color, #8c7a6b);
   margin-bottom: 0.45rem;
 }
 
 .welcome-text {
   font-family: var(--font-serif);
-  font-size: clamp(1.3rem, 3.6vw, 1.75rem);
-  font-style: italic;
-  color: var(--text-primary);
-  line-height: 1.35;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+  font-size: clamp(1rem, 2.3vw, 1.28rem);
+  line-height: 1.45;
+  color: var(--env-text-color, #2c2825);
+  margin: 0;
 }
 
-/* Contenedor central del Sello de Cera Dorado */
+/* =========================================================
+   SELLO DE LACRE FOTORREALISTA 3D + ANIMACIONES DE INVITACIÓN
+   ========================================================= */
 .wax-seal-center {
-  position: relative;
-  z-index: 10;
+  position: absolute;
+  top: 52%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 8;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  margin-top: 2vh;
-  transition: opacity 0.4s ease, transform 0.45s ease;
+  gap: 0.5rem;
+  margin: 0;
 }
 
-.welcome-overlay.opening .wax-seal-center {
-  opacity: 0;
-  transform: scale(0.85);
+.envelope-stage.geom-pocket .wax-seal-center {
+  top: 47%;
 }
 
-/* Botón Sello de Lacre Dorado Realista */
+.envelope-standard-footer-hint {
+  position: relative;
+  z-index: 8;
+  margin-top: auto;
+}
+
 .gold-wax-seal-btn {
-  position: relative;
-  width: clamp(114px, 26vw, 134px);
-  height: clamp(114px, 26vw, 134px);
+  width: clamp(82px, 18vw, 98px);
+  height: clamp(82px, 18vw, 98px);
   border-radius: 50%;
-  border: none;
-  cursor: pointer;
+  border: 5px solid rgba(255, 255, 255, 0.26);
+  background: radial-gradient(
+      circle at 28% 24%,
+      rgba(255, 255, 255, 0.45) 0%,
+      rgba(255, 255, 255, 0.08) 32%,
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at 72% 78%,
+      rgba(0, 0, 0, 0.34) 0%,
+      transparent 52%
+    ),
+    var(--env-seal-bg, #c59b27);
+  color: var(--env-seal-color, #fffdf7);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.38),
+    0 3px 6px rgba(0, 0, 0, 0.25),
+    inset 0 3px 6px rgba(255, 255, 255, 0.55),
+    inset 0 -5px 10px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 6px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem;
-  color: #fffaf0;
-  background: radial-gradient(
-    circle at 32% 28%,
-    #f6e29f 0%,
-    #d4af37 32%,
-    #aa8224 72%,
-    #7c5b12 100%
-  );
-  box-shadow:
-    0 14px 30px rgba(68, 49, 12, 0.36),
-    0 4px 10px rgba(0, 0, 0, 0.18),
-    inset 0 3px 6px rgba(255, 250, 224, 0.65),
-    inset 0 -4px 8px rgba(92, 66, 10, 0.55);
-  animation: sealAttractPulse 2.8s ease-in-out infinite;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Anillo interior grabado del sello */
-.gold-wax-seal-btn::before {
-  content: '';
-  position: absolute;
-  inset: 9px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(255, 248, 220, 0.55);
-  box-shadow:
-    inset 0 1px 3px rgba(92, 66, 10, 0.55),
-    0 1px 2px rgba(255, 250, 224, 0.45);
-  pointer-events: none;
-}
-
-/* Destello diagonal sutil sobre la cera dorada */
-.gold-wax-seal-btn::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: linear-gradient(
-    125deg,
-    rgba(255, 255, 255, 0.34) 0%,
-    rgba(255, 255, 255, 0) 48%
-  );
-  pointer-events: none;
+  cursor: pointer;
+  transition: transform 0.28s ease, box-shadow 0.28s ease;
+  position: relative;
+  overflow: hidden;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 
 .gold-wax-seal-btn:hover {
   animation-play-state: paused;
-  transform: scale(1.06);
-  box-shadow:
-    0 18px 36px rgba(68, 49, 12, 0.44),
-    0 0 0 8px rgba(212, 175, 55, 0.18),
-    inset 0 3px 6px rgba(255, 250, 224, 0.75);
+  transform: scale(1.08);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.42),
+    inset 0 3px 8px rgba(255, 255, 255, 0.6),
+    inset 0 -5px 10px rgba(0, 0, 0, 0.35);
 }
 
-.gold-wax-seal-btn:active {
-  transform: scale(0.97);
+/* Animaciones continuas de llamado a la acción (idle) */
+@keyframes sealPulseGlow {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.38),
+      0 0 0 0 rgba(212, 175, 55, 0.45),
+      inset 0 3px 6px rgba(255, 255, 255, 0.55),
+      inset 0 -5px 10px rgba(0, 0, 0, 0.35);
+  }
+  50% {
+    transform: scale(1.055);
+    box-shadow: 0 16px 30px rgba(0, 0, 0, 0.42),
+      0 0 0 12px rgba(212, 175, 55, 0),
+      inset 0 3px 6px rgba(255, 255, 255, 0.6),
+      inset 0 -5px 10px rgba(0, 0, 0, 0.35);
+  }
 }
 
+@keyframes sealGentleFloat {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes sealWiggleTilt {
+  0%,
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+  20% {
+    transform: rotate(-4deg) scale(1.03);
+  }
+  40% {
+    transform: rotate(4deg) scale(1.03);
+  }
+  60% {
+    transform: rotate(-2deg) scale(1.01);
+  }
+  80% {
+    transform: rotate(2deg) scale(1.01);
+  }
+}
+
+@keyframes sealShimmerSweep {
+  0% {
+    transform: translateX(-140%) rotate(25deg);
+  }
+  45%,
+  100% {
+    transform: translateX(160%) rotate(25deg);
+  }
+}
+
+.gold-wax-seal-btn.idle-pulse-glow {
+  animation: sealPulseGlow 2.4s ease-in-out infinite;
+}
+
+.gold-wax-seal-btn.idle-gentle-float {
+  animation: sealGentleFloat 2.6s ease-in-out infinite;
+}
+
+.gold-wax-seal-btn.idle-wiggle-tilt {
+  animation: sealWiggleTilt 2.8s ease-in-out infinite;
+}
+
+.gold-wax-seal-btn.idle-shimmer-sweep::after {
+  content: '';
+  position: absolute;
+  top: -30%;
+  left: -20%;
+  width: 45%;
+  height: 160%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.55),
+    transparent
+  );
+  animation: sealShimmerSweep 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Formas del sello de lacre */
+.gold-wax-seal-btn.shape-organic-wax {
+  border-radius: 46% 54% 49% 51% / 53% 47% 53% 47%;
+}
+
+.gold-wax-seal-btn.shape-classic-circle {
+  border-radius: 50%;
+  outline: 1px dashed rgba(255, 255, 255, 0.55);
+  outline-offset: -8px;
+}
+
+.gold-wax-seal-btn.shape-hexagon {
+  border-radius: 12px;
+  clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
+}
+
+.gold-wax-seal-btn.shape-heart {
+  border-radius: 50% 50% 18% 18% / 42% 42% 58% 58%;
+}
+
+.gold-wax-seal-btn.shape-crown-oval {
+  width: clamp(76px, 16vw, 88px);
+  height: clamp(92px, 20vw, 108px);
+  border-radius: 50%;
+  outline: 1px solid rgba(255, 255, 255, 0.5);
+  outline-offset: -7px;
+}
+
+/* Tipografías de iniciales */
 .seal-initials {
-  font-family: var(--font-serif);
-  font-size: clamp(1.65rem, 4.2vw, 2.05rem);
+  font-size: clamp(1.25rem, 3vw, 1.48rem);
+  line-height: 1.05;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  line-height: 1.1;
-  color: #fffdf7;
-  text-shadow: 0 1px 2px rgba(85, 60, 8, 0.65);
-  z-index: 2;
+  letter-spacing: 0.04em;
+}
+
+.seal-initials.font-serif-editorial {
+  font-family: var(--font-serif);
+}
+
+.seal-initials.font-script-calligraphy {
+  font-family: 'Great Vibes', cursive;
+  font-size: clamp(1.55rem, 3.6vw, 1.85rem);
+  font-weight: 400;
+}
+
+.seal-initials.font-modern-sans {
+  font-family: var(--font-sans);
+  font-size: clamp(1.05rem, 2.6vw, 1.18rem);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.seal-initials.font-classic-monogram {
+  font-family: 'Cinzel', serif;
+  font-size: clamp(1.15rem, 2.8vw, 1.32rem);
+  letter-spacing: 0.1em;
 }
 
 .seal-action-label {
   font-family: var(--font-sans);
-  font-size: 0.56rem;
-  font-weight: 600;
-  letter-spacing: 0.18em;
+  font-size: 0.54rem;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: #fff9e6;
-  margin-top: 0.25rem;
-  text-shadow: 0 1px 2px rgba(85, 60, 8, 0.65);
-  z-index: 2;
+  opacity: 0.88;
+  margin-top: 2px;
 }
 
-/* Etiqueta inferior discreta que refuerza la acción */
 .envelope-tap-hint {
-  margin-top: 1.25rem;
   font-family: var(--font-sans);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 500;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--accent-dark);
-  background: rgba(255, 255, 255, 0.72);
-  padding: 0.45rem 1.1rem;
-  border-radius: 999px;
-  border: 1px solid rgba(197, 160, 89, 0.35);
-  backdrop-filter: blur(4px);
-  animation: hintFloat 2.8s ease-in-out infinite;
+  color: var(--env-eyebrow-color, #8c7a6b);
 }
 
-/* Animación combinada de latido + halo dorado para atraer la atención */
-@keyframes sealAttractPulse {
-  0%, 100% {
-    transform: scale(1) translateY(0);
-    box-shadow:
-      0 14px 30px rgba(68, 49, 12, 0.36),
-      0 0 0 0 rgba(212, 175, 55, 0.45),
-      inset 0 3px 6px rgba(255, 250, 224, 0.65),
-      inset 0 -4px 8px rgba(92, 66, 10, 0.55);
-  }
-  50% {
-    transform: scale(1.055) translateY(-3px);
-    box-shadow:
-      0 20px 38px rgba(68, 49, 12, 0.42),
-      0 0 0 14px rgba(212, 175, 55, 0),
-      inset 0 3px 7px rgba(255, 250, 224, 0.75),
-      inset 0 -4px 8px rgba(92, 66, 10, 0.55);
-  }
+/* ANIMACIONES DE APERTURA */
+.welcome-overlay.opening.anim-flap-up .envelope-flap-top {
+  transform: rotateX(180deg);
 }
 
-@keyframes hintFloat {
-  0%, 100% {
-    opacity: 0.85;
-    transform: translateY(0);
-  }
-  50% {
-    opacity: 1;
-    transform: translateY(-2px);
-  }
+.welcome-overlay.opening.anim-flap-up .lace-insert-card {
+  transform: translateY(-45px);
+}
+
+.welcome-overlay.opening.anim-flap-up .envelope-stage {
+  transform: translateY(16px) scale(0.98);
+  opacity: 0;
+  transition-delay: 0.22s;
+}
+
+.welcome-overlay.opening.anim-split-curtain .envelope-flap-left {
+  transform: translateX(-105%);
+}
+
+.welcome-overlay.opening.anim-split-curtain .envelope-flap-right {
+  transform: translateX(105%);
+}
+
+.welcome-overlay.opening.anim-split-curtain .envelope-stage {
+  transform: scale(1.06);
+  opacity: 0;
+  transition-delay: 0.18s;
+}
+
+.welcome-overlay.opening.anim-slide-up-card .envelope-stage {
+  transform: translateY(-115%);
+  opacity: 0;
+}
+
+.welcome-overlay.opening.anim-zoom-dissolve .envelope-stage {
+  transform: scale(1.24);
+  filter: blur(10px);
+  opacity: 0;
 }

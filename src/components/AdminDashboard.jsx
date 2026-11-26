@@ -24,6 +24,17 @@ import {
 } from 'lucide-react';
 import { eventTemplates } from '../data/eventTemplates';
 import { colorPalettes } from '../data/colorPalettes';
+import {
+  ENVELOPE_PRESETS,
+  BACKDROP_STYLES,
+  SEAL_IDLE_ANIMATIONS,
+  SEAL_SHAPES,
+  SEAL_ICONS,
+  INITIALS_FONTS,
+  ENVELOPE_SIZES,
+  OPEN_ANIMATIONS,
+  getEnvelopePresetById,
+} from '../data/envelopePresets';
 import UploadProgressModal from './UploadProgressModal';
 import { uploadWithProgress } from '../utils/xhrUpload';
 import './AdminDashboard.css';
@@ -1712,17 +1723,775 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div className="field-box">
-                  <label>Texto Botón de Entrada</label>
-                  <input
-                    type="text"
-                    className="field-input"
-                    placeholder="Abrir Invitación"
-                    value={editingEvent.welcome.buttonText || 'Abrir Invitación'}
-                    onChange={(e) =>
-                      updateField('welcome.buttonText', e.target.value)
-                    }
-                  />
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.45rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={Boolean(editingEvent.welcome.showButtonText)}
+                      onChange={(e) => {
+                        const enabled = e.target.checked;
+                        updateField('welcome.showButtonText', enabled);
+                        if (enabled && !editingEvent.welcome.buttonText) {
+                          updateField('welcome.buttonText', 'Abrir Invitación');
+                        }
+                      }}
+                    />
+                    <span>Mostrar Texto Botón de Entrada (Opcional)</span>
+                  </label>
+                  {editingEvent.welcome.showButtonText && (
+                    <input
+                      type="text"
+                      className="field-input"
+                      placeholder="Abrir Invitación"
+                      value={editingEvent.welcome.buttonText || ''}
+                      onChange={(e) =>
+                        updateField('welcome.buttonText', e.target.value)
+                      }
+                    />
+                  )}
                 </div>
+              </div>
+
+              {/* SUBPANEL: DISEÑO Y PERSONALIZACIÓN DEL SOBRE DE BIENVENIDA */}
+              <div
+                style={{
+                  marginTop: '1.25rem',
+                  marginBottom: '1.5rem',
+                  padding: '1.25rem',
+                  backgroundColor: '#faf8f5',
+                  border: '1px solid #e5dfd5',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '0.75rem',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  <div>
+                    <strong style={{ fontSize: '0.95rem', color: '#2c2825' }}>
+                      Diseño y Personalización del Sobre Inicial (11 Estilos)
+                    </strong>
+                    <p
+                      style={{
+                        fontSize: '0.78rem',
+                        color: '#6e6862',
+                        margin: '0.2rem 0 0',
+                      }}
+                    >
+                      Elige un diseño base (Original, Tenue, Sobrio, Con Diseño o
+                      Realista) y personaliza colores, imagen, sello y
+                      animación.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="admin-mini-btn"
+                    onClick={() => {
+                      updateField('welcome.envelopeBgColor', '');
+                      updateField('welcome.envelopeFlapColor', '');
+                      updateField('welcome.envelopeLinerColor', '');
+                      updateField('welcome.envelopeSealColor', '');
+                      updateField('welcome.envelopeTextColor', '');
+                      updateField('welcome.envelopeBorderColor', '');
+                      updateField('welcome.envelopeImage', '');
+                      updateField('welcome.envelopeImageOpacity', 0.35);
+                    }}
+                  >
+                    Restaurar colores del diseño
+                  </button>
+                </div>
+
+                {/* Cuadrícula de los 11 estilos de sobres */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns:
+                      'repeat(auto-fill, minmax(175px, 1fr))',
+                    gap: '0.75rem',
+                    marginBottom: '1.25rem',
+                  }}
+                >
+                  {ENVELOPE_PRESETS.map((preset) => {
+                    const activeStyle =
+                      (editingEvent.welcome.envelopeStyle || 'default') ===
+                      preset.id;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() =>
+                          updateField('welcome.envelopeStyle', preset.id)
+                        }
+                        style={{
+                          textAlign: 'left',
+                          padding: '0.7rem',
+                          backgroundColor: '#ffffff',
+                          border: activeStyle
+                            ? '2px solid #2c2825'
+                            : '1px solid #dfd8ce',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.45rem',
+                          boxShadow: activeStyle
+                            ? '0 6px 16px rgba(44,40,37,0.12)'
+                            : 'none',
+                        }}
+                      >
+                        {/* Miniatura visual del sobre */}
+                        <div
+                          style={{
+                            height: '58px',
+                            width: '100%',
+                            background: preset.paperBg,
+                            border: `1px solid ${preset.borderColor}`,
+                            position: 'relative',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <div
+                            style={{
+                              position: 'absolute',
+                              inset: 0,
+                              background: preset.flapBg,
+                              clipPath: 'polygon(0 0, 100% 0, 50% 56%)',
+                            }}
+                          />
+                          <div
+                            style={{
+                              width: '24px',
+                              height: '24px',
+                              borderRadius: '50%',
+                              background: preset.sealBg,
+                              color: preset.sealColor,
+                              fontSize: '0.62rem',
+                              fontWeight: 600,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              position: 'relative',
+                              zIndex: 2,
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+                            }}
+                          >
+                            {editingEvent.welcome.initials || 'I'}
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '0.25rem',
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: '0.64rem',
+                              fontWeight: 600,
+                              letterSpacing: '0.08em',
+                              textTransform: 'uppercase',
+                              color: '#8c7a6b',
+                            }}
+                          >
+                            {preset.category}
+                          </span>
+                          {activeStyle && (
+                            <span
+                              style={{
+                                fontSize: '0.62rem',
+                                fontWeight: 700,
+                                color: '#16a34a',
+                              }}
+                            >
+                              ✓ Activo
+                            </span>
+                          )}
+                        </div>
+                        <strong
+                          style={{
+                            fontSize: '0.82rem',
+                            color: '#2c2825',
+                            lineHeight: 1.25,
+                          }}
+                        >
+                          {preset.name}
+                        </strong>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Controles de Fondo detrás del sobre, Forma de Sello, Icono, Tipografía, Tamaño y Animación */}
+                <div className="editor-grid-3">
+                  <div className="field-box">
+                    <label>Fondo Detrás del Sobre</label>
+                    <select
+                      className="field-input"
+                      value={editingEvent.welcome.backdropStyle || 'auto'}
+                      onChange={(e) =>
+                        updateField('welcome.backdropStyle', e.target.value)
+                      }
+                    >
+                      {BACKDROP_STYLES.map((bg) => (
+                        <option key={bg.id} value={bg.id}>
+                          {bg.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="field-box">
+                    <label>Forma del Sello de Lacre</label>
+                    <select
+                      className="field-input"
+                      value={editingEvent.welcome.sealShape || 'organic-wax'}
+                      onChange={(e) =>
+                        updateField('welcome.sealShape', e.target.value)
+                      }
+                    >
+                      {SEAL_SHAPES.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="field-box">
+                    <label>Contenido / Icono del Sello</label>
+                    <select
+                      className="field-input"
+                      value={editingEvent.welcome.sealIcon || 'initials'}
+                      onChange={(e) =>
+                        updateField('welcome.sealIcon', e.target.value)
+                      }
+                    >
+                      {SEAL_ICONS.map((ic) => (
+                        <option key={ic.id} value={ic.id}>
+                          {ic.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="field-box">
+                    <label>Tipografía de las Iniciales</label>
+                    <select
+                      className="field-input"
+                      value={
+                        editingEvent.welcome.initialsFont || 'serif-editorial'
+                      }
+                      onChange={(e) =>
+                        updateField('welcome.initialsFont', e.target.value)
+                      }
+                    >
+                      {INITIALS_FONTS.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="field-box">
+                    <label>Tamaño del Sobre</label>
+                    <select
+                      className="field-input"
+                      value={editingEvent.welcome.envelopeSize || 'standard'}
+                      onChange={(e) =>
+                        updateField('welcome.envelopeSize', e.target.value)
+                      }
+                    >
+                      {ENVELOPE_SIZES.map((sz) => (
+                        <option key={sz.id} value={sz.id}>
+                          {sz.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="field-box">
+                    <label>Animación del Sello (Invitar a Abrir)</label>
+                    <select
+                      className="field-input"
+                      value={
+                        editingEvent.welcome.sealIdleAnimation || 'pulse-glow'
+                      }
+                      onChange={(e) =>
+                        updateField(
+                          'welcome.sealIdleAnimation',
+                          e.target.value
+                        )
+                      }
+                    >
+                      {SEAL_IDLE_ANIMATIONS.map((anim) => (
+                        <option key={anim.id} value={anim.id}>
+                          {anim.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="field-box">
+                    <label>Animación de Apertura</label>
+                    <select
+                      className="field-input"
+                      value={editingEvent.welcome.openAnimation || 'flap-up'}
+                      onChange={(e) =>
+                        updateField('welcome.openAnimation', e.target.value)
+                      }
+                    >
+                      {OPEN_ANIMATIONS.map((an) => (
+                        <option key={an.id} value={an.id}>
+                          {an.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Colores personalizados opcionales del sobre */}
+                {(() => {
+                  const activePreset = getEnvelopePresetById(
+                    editingEvent.welcome.envelopeStyle || 'default'
+                  );
+                  return (
+                    <div
+                      className="editor-grid-4"
+                      style={{ marginTop: '0.5rem' }}
+                    >
+                      <div className="field-box">
+                        <label>Color Papel / Cuerpo</label>
+                        <input
+                          type="color"
+                          className="field-input"
+                          style={{ height: '38px', padding: '2px' }}
+                          value={
+                            editingEvent.welcome.envelopeBgColor?.startsWith(
+                              '#'
+                            )
+                              ? editingEvent.welcome.envelopeBgColor
+                              : activePreset.paperBg.startsWith('#')
+                              ? activePreset.paperBg
+                              : '#f6f1e9'
+                          }
+                          onChange={(e) =>
+                            updateField(
+                              'welcome.envelopeBgColor',
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="field-box">
+                        <label>Color Forro Interior / Tarjeta</label>
+                        <input
+                          type="color"
+                          className="field-input"
+                          style={{ height: '38px', padding: '2px' }}
+                          value={
+                            editingEvent.welcome.envelopeLinerColor?.startsWith(
+                              '#'
+                            )
+                              ? editingEvent.welcome.envelopeLinerColor
+                              : activePreset.linerBg?.startsWith('#')
+                              ? activePreset.linerBg
+                              : '#9b0c14'
+                          }
+                          onChange={(e) =>
+                            updateField(
+                              'welcome.envelopeLinerColor',
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="field-box">
+                        <label>Color Solapas</label>
+                        <input
+                          type="color"
+                          className="field-input"
+                          style={{ height: '38px', padding: '2px' }}
+                          value={
+                            editingEvent.welcome.envelopeFlapColor?.startsWith(
+                              '#'
+                            )
+                              ? editingEvent.welcome.envelopeFlapColor
+                              : activePreset.flapBg.startsWith('#')
+                              ? activePreset.flapBg
+                              : '#ede4d6'
+                          }
+                          onChange={(e) =>
+                            updateField(
+                              'welcome.envelopeFlapColor',
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="field-box">
+                        <label>Color Sello de Lacre</label>
+                        <input
+                          type="color"
+                          className="field-input"
+                          style={{ height: '38px', padding: '2px' }}
+                          value={
+                            editingEvent.welcome.envelopeSealColor?.startsWith(
+                              '#'
+                            )
+                              ? editingEvent.welcome.envelopeSealColor
+                              : activePreset.sealBg.startsWith('#')
+                              ? activePreset.sealBg
+                              : '#c59b27'
+                          }
+                          onChange={(e) =>
+                            updateField(
+                              'welcome.envelopeSealColor',
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="field-box">
+                        <label>Color Texto y Borde</label>
+                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                          <input
+                            type="color"
+                            title="Color de texto"
+                            className="field-input"
+                            style={{ height: '38px', padding: '2px' }}
+                            value={
+                              editingEvent.welcome.envelopeTextColor?.startsWith(
+                                '#'
+                              )
+                                ? editingEvent.welcome.envelopeTextColor
+                                : activePreset.textColor
+                            }
+                            onChange={(e) =>
+                              updateField(
+                                'welcome.envelopeTextColor',
+                                e.target.value
+                              )
+                            }
+                          />
+                          <input
+                            type="color"
+                            title="Color de borde"
+                            className="field-input"
+                            style={{ height: '38px', padding: '2px' }}
+                            value={
+                              editingEvent.welcome.envelopeBorderColor?.startsWith(
+                                '#'
+                              )
+                                ? editingEvent.welcome.envelopeBorderColor
+                                : activePreset.borderColor.startsWith('#')
+                                ? activePreset.borderColor
+                                : '#d4af37'
+                            }
+                            onChange={(e) =>
+                              updateField(
+                                'welcome.envelopeBorderColor',
+                                e.target.value
+                              )
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Imagen de sobre completa o textura personalizada */}
+                <div className="editor-grid-2" style={{ marginTop: '0.35rem' }}>
+                  <div className="field-box" style={{ marginBottom: 0 }}>
+                    <label>
+                      Imagen de Sobre Propia o Textura (Conversión automática a .webp)
+                    </label>
+                    <div className="upload-inline-row">
+                      <input
+                        type="text"
+                        className="field-input"
+                        placeholder="https://... (.webp, .png, .jpg) o sube archivo"
+                        value={editingEvent.welcome.envelopeImage || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          updateField('welcome.envelopeImage', val);
+                          if (val.trim()) {
+                            updateField('welcome.envelopeStyle', 'custom-image');
+                          }
+                        }}
+                      />
+                      <label
+                        className="admin-mini-btn"
+                        style={{
+                          cursor: uploadState.active ? 'not-allowed' : 'pointer',
+                          whiteSpace: 'nowrap',
+                          opacity: uploadState.active ? 0.65 : 1,
+                        }}
+                      >
+                        <Upload size={14} />
+                        {uploadState.active &&
+                        uploadState.fieldKey === 'envelopeImage'
+                          ? `Subiendo ${uploadState.progress}%`
+                          : 'Subir .webp'}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          hidden
+                          disabled={uploadState.active}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            handleAssetUpload(
+                              file,
+                              'envelopeImage',
+                              'Subiendo y optimizando sobre (.webp)...',
+                              (uploadedUrl) => {
+                                updateField('welcome.envelopeImage', uploadedUrl);
+                                updateField(
+                                  'welcome.envelopeStyle',
+                                  'custom-image'
+                                );
+                              }
+                            );
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                    </div>
+
+                    {editingEvent.welcome.envelopeImage && (
+                      <div
+                        style={{
+                          marginTop: '0.6rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.75rem',
+                          padding: '0.5rem 0.65rem',
+                          background: '#ffffff',
+                          border: '1px solid #dfd8ce',
+                        }}
+                      >
+                        <img
+                          src={editingEvent.welcome.envelopeImage}
+                          alt="Vista previa del sobre"
+                          style={{
+                            width: '56px',
+                            height: '56px',
+                            objectFit: 'contain',
+                            background:
+                              'repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50% / 12px 12px',
+                            border: '1px solid #e5dfd5',
+                          }}
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              color: '#2c2825',
+                            }}
+                          >
+                            Imagen del sobre cargada (.webp)
+                          </div>
+                          <div
+                            style={{
+                              fontSize: '0.7rem',
+                              color: '#6e6862',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {editingEvent.welcome.envelopeImage}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="admin-mini-btn"
+                          style={{ color: '#9b1c1c', padding: '0.35rem 0.6rem' }}
+                          onClick={() => {
+                            updateField('welcome.envelopeImage', '');
+                            if (
+                              editingEvent.welcome.envelopeStyle ===
+                              'custom-image'
+                            ) {
+                              updateField('welcome.envelopeStyle', 'default');
+                            }
+                          }}
+                        >
+                          <Trash2 size={13} /> Quitar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="field-box" style={{ marginBottom: 0 }}>
+                    <label>
+                      Opacidad de Imagen del Sobre (
+                      {Math.round(
+                        (typeof editingEvent.welcome.envelopeImageOpacity ===
+                        'number'
+                          ? editingEvent.welcome.envelopeImageOpacity
+                          : 0.35) * 100
+                      )}
+                      %)
+                    </label>
+                    <input
+                      type="range"
+                      min="0.05"
+                      max="1"
+                      step="0.05"
+                      style={{ width: '100%', marginTop: '0.5rem' }}
+                      value={
+                        typeof editingEvent.welcome.envelopeImageOpacity ===
+                        'number'
+                          ? editingEvent.welcome.envelopeImageOpacity
+                          : 0.35
+                      }
+                      onChange={(e) =>
+                        updateField(
+                          'welcome.envelopeImageOpacity',
+                          Number(e.target.value)
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* Controles exclusivos cuando se usa Imagen de Sobre Completa (custom-image) */}
+                {editingEvent.welcome.envelopeImage && (
+                  <div
+                    style={{
+                      marginTop: '0.85rem',
+                      padding: '0.85rem 1rem',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #dfd8ce',
+                      display: 'grid',
+                      gridTemplateColumns:
+                        'repeat(auto-fit, minmax(220px, 1fr))',
+                      gap: '0.85rem',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <label
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        fontSize: '0.82rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={
+                          (editingEvent.welcome.envelopeStyle || 'default') ===
+                          'custom-image'
+                        }
+                        onChange={(e) =>
+                          updateField(
+                            'welcome.envelopeStyle',
+                            e.target.checked ? 'custom-image' : 'default'
+                          )
+                        }
+                      />
+                      <span>
+                        <strong>Mostrar imagen tal cual como sobre</strong> (sin
+                        triángulos CSS)
+                      </span>
+                    </label>
+
+                    <label
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        fontSize: '0.82rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={Boolean(
+                          editingEvent.welcome.hideOverlayTextOnCustomImage
+                        )}
+                        onChange={(e) =>
+                          updateField(
+                            'welcome.hideOverlayTextOnCustomImage',
+                            e.target.checked
+                          )
+                        }
+                      />
+                      <span>
+                        Mi imagen ya trae su sello/texto (hacer toda la imagen
+                        clickable)
+                      </span>
+                    </label>
+
+                    {!editingEvent.welcome.hideOverlayTextOnCustomImage && (
+                      <div>
+                        <label
+                          style={{
+                            display: 'block',
+                            fontSize: '0.74rem',
+                            color: '#6e6862',
+                            marginBottom: '0.25rem',
+                          }}
+                        >
+                          Posición Vertical del Sello sobre la Imagen (
+                          {typeof editingEvent.welcome.customSealTop ===
+                          'number'
+                            ? editingEvent.welcome.customSealTop
+                            : 54}
+                          %)
+                        </label>
+                        <input
+                          type="range"
+                          min="15"
+                          max="85"
+                          step="1"
+                          style={{ width: '100%' }}
+                          value={
+                            typeof editingEvent.welcome.customSealTop ===
+                            'number'
+                              ? editingEvent.welcome.customSealTop
+                              : 54
+                          }
+                          onChange={(e) =>
+                            updateField(
+                              'welcome.customSealTop',
+                              Number(e.target.value)
+                            )
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="editor-grid-2">
                 <div className="field-box">
                   <label>
                     Etiqueta Superior Portada (ej. ¡Nos Casamos! / Mis XV Años)
