@@ -201,6 +201,12 @@ export default function AdminDashboard() {
     if (!Array.isArray(ev.customHeroes)) {
       ev.customHeroes = [];
     }
+    if (!ev.hero || typeof ev.hero !== 'object') {
+      ev.hero = {};
+    }
+    if (typeof ev.hero.musicVolume !== 'number' || Number.isNaN(ev.hero.musicVolume)) {
+      ev.hero.musicVolume = 0.35;
+    }
     if (!ev.sectionBackgrounds || typeof ev.sectionBackgrounds !== 'object') {
       ev.sectionBackgrounds = {};
     }
@@ -1407,7 +1413,12 @@ export default function AdminDashboard() {
                         </div>
                       </>
                     ) : (
-                      <img src={item.url} alt={item.filename} loading="lazy" />
+                      <img
+                        src={item.thumbUrl || item.url}
+                        alt={item.filename}
+                        loading="lazy"
+                        decoding="async"
+                      />
                     )}
                     <button
                       type="button"
@@ -2645,43 +2656,75 @@ export default function AdminDashboard() {
                 </div>
 
                 {isMusicEnabled && (
-                  <div className="field-box" style={{ marginBottom: 0 }}>
-                    <label>Música de Fondo (.mp3 URL o Subir MP3)</label>
-                    <div className="upload-inline-row">
+                  <>
+                    <div className="field-box">
+                      <label>Música de Fondo (.mp3 URL o Subir MP3)</label>
+                      <div className="upload-inline-row">
+                        <input
+                          type="text"
+                          className="field-input"
+                          value={editingEvent.hero.musicUrl}
+                          onChange={(e) =>
+                            updateField('hero.musicUrl', e.target.value)
+                          }
+                        />
+                        <label
+                          className="admin-mini-btn"
+                          style={{ whiteSpace: 'nowrap' }}
+                        >
+                          <Upload size={15} />
+                          {uploadState.active && uploadState.fieldKey === 'music'
+                            ? `${uploadState.progress}%`
+                            : 'Subir MP3'}
+                          <input
+                            type="file"
+                            accept="audio/mp3,audio/mpeg"
+                            hidden
+                            disabled={uploadState.active}
+                            onChange={(e) => {
+                              handleAssetUpload(
+                                e.target.files?.[0],
+                                'music',
+                                'Subiendo música MP3...',
+                                (url) => updateField('hero.musicUrl', url)
+                              );
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="field-box" style={{ marginBottom: 0 }}>
+                      <label>
+                        Volumen de la Música de Fondo (
+                        {Math.round(
+                          (typeof editingEvent.hero.musicVolume === 'number'
+                            ? editingEvent.hero.musicVolume
+                            : 0.35) * 100
+                        )}
+                        %)
+                      </label>
                       <input
-                        type="text"
-                        className="field-input"
-                        value={editingEvent.hero.musicUrl}
+                        type="range"
+                        min="0.05"
+                        max="1"
+                        step="0.05"
+                        style={{ width: '100%', marginTop: '0.45rem' }}
+                        value={
+                          typeof editingEvent.hero.musicVolume === 'number'
+                            ? editingEvent.hero.musicVolume
+                            : 0.35
+                        }
                         onChange={(e) =>
-                          updateField('hero.musicUrl', e.target.value)
+                          updateField(
+                            'hero.musicVolume',
+                            Number(e.target.value)
+                          )
                         }
                       />
-                      <label
-                        className="admin-mini-btn"
-                        style={{ whiteSpace: 'nowrap' }}
-                      >
-                        <Upload size={15} />
-                        {uploadState.active && uploadState.fieldKey === 'music'
-                          ? `${uploadState.progress}%`
-                          : 'Subir MP3'}
-                        <input
-                          type="file"
-                          accept="audio/mp3,audio/mpeg"
-                          hidden
-                          disabled={uploadState.active}
-                          onChange={(e) => {
-                            handleAssetUpload(
-                              e.target.files?.[0],
-                              'music',
-                              'Subiendo música MP3...',
-                              (url) => updateField('hero.musicUrl', url)
-                            );
-                            e.target.value = '';
-                          }}
-                        />
-                      </label>
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
 

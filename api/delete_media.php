@@ -13,11 +13,18 @@ if (!$slug || $filename === '') {
 
 $baseDir = getEventosBaseDir();
 $uploadsDir = $baseDir . DIRECTORY_SEPARATOR . $slug . DIRECTORY_SEPARATOR . 'uploads';
-$dataFile = $uploadsDir . DIRECTORY_SEPARATOR . 'album_data.json';
-$filePath = $uploadsDir . DIRECTORY_SEPARATOR . $filename;
+$thumbsDir  = $uploadsDir . DIRECTORY_SEPARATOR . 'thumbs';
+$dataFile   = $uploadsDir . DIRECTORY_SEPARATOR . 'album_data.json';
+$filePath   = $uploadsDir . DIRECTORY_SEPARATOR . $filename;
 
 if (file_exists($filePath) && is_file($filePath)) {
     @unlink($filePath);
+}
+
+$baseName = pathinfo($filename, PATHINFO_FILENAME);
+$thumbPath = $thumbsDir . DIRECTORY_SEPARATOR . $baseName . '.webp';
+if (file_exists($thumbPath) && is_file($thumbPath)) {
+    @unlink($thumbPath);
 }
 
 if (file_exists($dataFile)) {

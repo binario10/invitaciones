@@ -310,9 +310,10 @@ export default function AlbumPage({ eventConfig, slug }) {
                   </>
                 ) : (
                   <img
-                    src={item.url}
+                    src={item.thumbUrl || item.url}
                     alt={`Recuerdo ${idx + 1}`}
                     loading="lazy"
+                    decoding="async"
                   />
                 )}
               </div>
@@ -383,7 +384,11 @@ export default function AlbumPage({ eventConfig, slug }) {
             {currentItem.type === 'video' ? (
               <video src={currentItem.url} controls autoPlay playsInline />
             ) : (
-              <img src={currentItem.url} alt="Vista ampliada" />
+              <img
+                src={currentItem.thumbUrl || currentItem.url}
+                alt="Vista ampliada"
+                decoding="async"
+              />
             )}
           </div>
 

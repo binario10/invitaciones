@@ -28,13 +28,107 @@ if (!is_dir($eventDir)) {
 }
 
 $uploadsDir = $eventDir . DIRECTORY_SEPARATOR . 'uploads';
-$dataFile = $uploadsDir . DIRECTORY_SEPARATOR . 'album_data.json';
+$thumbsDir  = $uploadsDir . DIRECTORY_SEPARATOR . 'thumbs';
+$dataFile   = $uploadsDir . DIRECTORY_SEPARATOR . 'album_data.json';
 
 if (!is_dir($uploadsDir)) {
     mkdir($uploadsDir, 0755, true);
 }
+if (!is_dir($thumbsDir)) {
+    mkdir($thumbsDir, 0755, true);
+}
 if (!file_exists($dataFile)) {
     file_put_contents($dataFile, '[]');
+}
+
+/**
+ * Genera una miniatura ligera en formato .webp (máx. 1080px en su lado mayor, calidad 74%)
+ * a partir del archivo original ya guardado en disco, sin alterar jamás el original.
+ */
+function generateAlbumWebpThumb(string $originalPath, string $sourceExt, string $thumbsDir, string $baseId): ?string
+{
+    if (!extension_loaded('gd') || !function_exists('imagewebp')) {
+        return null;
+    }
+
+    @ini_set('memory_limit', '256M');
+
+    $srcImg = null;
+    if ($sourceExt === 'jpg' || $sourceExt === 'jpeg') {
+        $srcImg = @imagecreatefromjpeg($originalPath);
+        if ($srcImg && function_exists('exif_read_data')) {
+            $exif = @exif_read_data($originalPath);
+            $orientation = (int)($exif['Orientation'] ?? 1);
+            if ($orientation === 3) {
+                $srcImg = imagerotate($srcImg, 180, 0);
+            } elseif ($orientation === 6) {
+                $srcImg = imagerotate($srcImg, -90, 0);
+            } elseif ($orientation === 8) {
+                $srcImg = imagerotate($srcImg, 90, 0);
+            }
+        }
+    } elseif ($sourceExt === 'png') {
+        $srcImg = @imagecreatefrompng($originalPath);
+    } elseif ($sourceExt === 'webp') {
+        $srcImg = @imagecreatefromwebp($originalPath);
+    } elseif ($sourceExt === 'gif') {
+        $srcImg = @imagecreatefromgif($originalPath);
+    }
+
+    if (!$srcImg) {
+        return null;
+    }
+
+    if (function_exists('imagepalettetotruecolor') && !imageistruecolor($srcImg)) {
+        @imagepalettetotruecolor($srcImg);
+    }
+
+    $origW = imagesx($srcImg);
+    $origH = imagesy($srcImg);
+    if ($origW <= 0 || $origH <= 0) {
+        imagedestroy($srcImg);
+        return null;
+    }
+
+    $maxDimension = 1080;
+    $targetW = $origW;
+    $targetH = $origH;
+
+    if ($origW > $maxDimension || $origH > $maxDimension) {
+        if ($origW >= $origH) {
+            $targetW = $maxDimension;
+            $targetH = (int)round(($origH * $maxDimension) / $origW);
+        } else {
+            $targetH = $maxDimension;
+            $targetW = (int)round(($origW * $maxDimension) / $origH);
+        }
+    }
+
+    $finalImg = $srcImg;
+    if ($targetW !== $origW || $targetH !== $origH) {
+        $resized = imagecreatetruecolor($targetW, $targetH);
+        imagealphablending($resized, false);
+        imagesavealpha($resized, true);
+        $transparent = imagecolorallocatealpha($resized, 0, 0, 0, 127);
+        imagefilledrectangle($resized, 0, 0, $targetW, $targetH, $transparent);
+        imagecopyresampled($resized, $srcImg, 0, 0, 0, 0, $targetW, $targetH, $origW, $origH);
+        imagedestroy($srcImg);
+        $finalImg = $resized;
+    } else {
+        imagealphablending($finalImg, false);
+        imagesavealpha($finalImg, true);
+    }
+
+    $thumbFilename = $baseId . '.webp';
+    $thumbPath = $thumbsDir . DIRECTORY_SEPARATOR . $thumbFilename;
+    $saved = @imagewebp($finalImg, $thumbPath, 74);
+    imagedestroy($finalImg);
+
+    if ($saved && is_file($thumbPath) && filesize($thumbPath) > 0) {
+        return $thumbFilename;
+    }
+
+    return null;
 }
 
 // Compatibilidad tanto con 'media[]' como con 'files[]'
@@ -43,7 +137,6 @@ if (!$rawFiles) {
     sendJson(['success' => false, 'message' => 'No se recibió ningún archivo en la petición.'], 400);
 }
 
-// Soporte amplio de imágenes y múltiples contenedores/MIME de video (iOS, Android, cámaras)
 $allowedMimes = [
     'image/jpeg'                => ['ext' => 'jpg',  'type' => 'image'],
     'image/png'                 => ['ext' => 'png',  'type' => 'image'],
@@ -141,17 +234,37 @@ foreach ($files as $file) {
     }
 
     $uniqueId = uniqid('mem_', true);
-    $safeFilename = str_replace('.', '_', $uniqueId) . '.' . $ext;
+    $baseId = str_replace('.', '_', $uniqueId);
+    $safeFilename = $baseId . '.' . $ext;
     $destination = $uploadsDir . DIRECTORY_SEPARATOR . $safeFilename;
 
     if (move_uploaded_file($file['tmp_name'], $destination)) {
-        $uploadedItems[] = [
+        $originalUrl = '/eventos/' . $slug . '/uploads/' . $safeFilename;
+        $thumbUrl = $originalUrl;
+        $thumbFilename = null;
+
+        if ($mediaType === 'image') {
+            $generatedThumb = generateAlbumWebpThumb($destination, $ext, $thumbsDir, $baseId);
+            if ($generatedThumb !== null) {
+                $thumbFilename = $generatedThumb;
+                $thumbUrl = '/eventos/' . $slug . '/uploads/thumbs/' . $generatedThumb;
+            }
+        }
+
+        $itemRecord = [
             'id'        => $uniqueId,
             'filename'  => $safeFilename,
-            'url'       => '/eventos/' . $slug . '/uploads/' . $safeFilename,
+            'url'       => $originalUrl,
+            'thumbUrl'  => $thumbUrl,
             'type'      => $mediaType,
             'createdAt' => date('c'),
         ];
+
+        if ($thumbFilename !== null) {
+            $itemRecord['thumbFilename'] = $thumbFilename;
+        }
+
+        $uploadedItems[] = $itemRecord;
     } else {
         $errors[] = "No se pudo guardar {$file['name']} en el directorio del evento.";
     }

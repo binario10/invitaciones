@@ -145,6 +145,10 @@ function InvitationView({ eventConfig, slug }) {
     message: 'Estás invitado a celebrar con nosotros',
   };
   const hasMusic = resolveMusicEnabled(hero);
+  const resolvedMusicVolume =
+    typeof hero?.musicVolume === 'number' && !Number.isNaN(hero.musicVolume)
+      ? Math.min(1, Math.max(0, hero.musicVolume))
+      : 0.35;
   const sectionBackgrounds = eventConfig?.sectionBackgrounds || {};
   const customHeroes = Array.isArray(eventConfig?.customHeroes)
     ? eventConfig.customHeroes
@@ -154,6 +158,8 @@ function InvitationView({ eventConfig, slug }) {
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
+
+    audio.volume = resolvedMusicVolume;
 
     if (!hasMusic) {
       audio.pause();
@@ -169,7 +175,7 @@ function InvitationView({ eventConfig, slug }) {
       audio.removeEventListener('play', onPlay);
       audio.removeEventListener('pause', onPause);
     };
-  }, [hasMusic, hero.musicUrl]);
+  }, [hasMusic, hero.musicUrl, resolvedMusicVolume]);
 
   const handleEnter = (withMusic = true) => {
     setShowOverlay(false);
@@ -182,6 +188,7 @@ function InvitationView({ eventConfig, slug }) {
       return;
     }
 
+    audioRef.current.volume = resolvedMusicVolume;
     const playPromise = audioRef.current.play();
     if (playPromise !== undefined) {
       playPromise
@@ -212,6 +219,7 @@ function InvitationView({ eventConfig, slug }) {
       audioRef.current.pause();
       setIsPlaying(false);
     } else {
+      audioRef.current.volume = resolvedMusicVolume;
       audioRef.current
         .play()
         .then(() => setIsPlaying(true))
@@ -361,7 +369,9 @@ function DynamicEventLoader({ mode }) {
     let active = true;
     setStatus('loading');
 
-    fetch(`${API_URL}/get_event.php?slug=${encodeURIComponent(slug)}`)
+    fetch(`${API_URL}/get_event.php?slug=${encodeURIComponent(slug)}&t=${Date.now()}`, {
+      cache: 'no-store',
+    })
       .then((res) => {
         if (!res.ok) throw new Error('Not found');
         return res.json();
